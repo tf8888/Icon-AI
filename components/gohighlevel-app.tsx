@@ -1,12 +1,18 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Users,
   UserPlus,
@@ -22,21 +28,24 @@ import {
   Clock,
   Mic,
   Bot,
-} from "lucide-react"
-import { VoiceChatModal } from "./voice-chat-modal" // Import voice chat modal
-import { ConversationThreadModal } from "./conversation-thread-modal" // Added conversation thread modal import
-import { OpportunityModal } from "./opportunity-modal" // Added opportunity modal import
-import { ChatInterface } from "./chat-interface" // Added AI Chat interface import
+} from "lucide-react";
+import { VoiceChatModal } from "./voice-chat-modal"; // Import voice chat modal
+import { ConversationThreadModal } from "./conversation-thread-modal"; // Added conversation thread modal import
+import { OpportunityModal } from "./opportunity-modal"; // Added opportunity modal import
+import { ChatInterface } from "./chat-interface"; // Added AI Chat interface import
 
 export function GoHighLevelApp() {
-  const [isConnected, setIsConnected] = useState(false)
-  const [searchTerm, setSearchTerm] = useState("")
-  const [isVoiceChatOpen, setIsVoiceChatOpen] = useState(false) // Added voice chat modal state
-  const [selectedConversation, setSelectedConversation] = useState<any>(null) // Added state for conversation thread modal
-  const [isConversationThreadOpen, setIsConversationThreadOpen] = useState(false) // Added state for conversation thread modal
-  const [isOpportunityModalOpen, setIsOpportunityModalOpen] = useState(false) // Added opportunity modal state
-  const [selectedOpportunity, setSelectedOpportunity] = useState<any>(null)
-  const [opportunityModalMode, setOpportunityModalMode] = useState<"create" | "edit">("create")
+  const [isConnected, setIsConnected] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isVoiceChatOpen, setIsVoiceChatOpen] = useState(false); // Added voice chat modal state
+  const [selectedConversation, setSelectedConversation] = useState<any>(null); // Added state for conversation thread modal
+  const [isConversationThreadOpen, setIsConversationThreadOpen] =
+    useState(false); // Added state for conversation thread modal
+  const [isOpportunityModalOpen, setIsOpportunityModalOpen] = useState(false); // Added opportunity modal state
+  const [selectedOpportunity, setSelectedOpportunity] = useState<any>(null);
+  const [opportunityModalMode, setOpportunityModalMode] = useState<
+    "create" | "edit"
+  >("create");
 
   // Mock data for demonstration
   const stats = {
@@ -44,7 +53,7 @@ export function GoHighLevelApp() {
     newLeads: 23,
     conversionRate: 12.5,
     activeDeals: 8,
-  }
+  };
 
   const recentContacts = [
     {
@@ -79,14 +88,14 @@ export function GoHighLevelApp() {
       status: "hot",
       avatar: "/placeholder.svg?height=32&width=32",
     },
-  ]
+  ];
 
   const recentActivities = [
     { id: 1, type: "call", contact: "Sarah Johnson", time: "2 hours ago" },
     { id: 2, type: "email", contact: "Mike Chen", time: "4 hours ago" },
     { id: 3, type: "meeting", contact: "Emily Davis", time: "1 day ago" },
     { id: 4, type: "call", contact: "Alex Rodriguez", time: "2 days ago" },
-  ]
+  ];
 
   const conversations = [
     {
@@ -125,7 +134,7 @@ export function GoHighLevelApp() {
       status: "closed",
       avatar: "/placeholder.svg?height=32&width=32",
     },
-  ]
+  ];
 
   const opportunities = [
     {
@@ -168,97 +177,101 @@ export function GoHighLevelApp() {
       closeDate: "2024-01-30",
       lastActivity: "Contract signed",
     },
-  ]
+  ];
 
   const handleConnect = () => {
     // In a real app, this would redirect to GoHighLevel OAuth
     // For demo purposes, simulate connection
-    setTimeout(() => setIsConnected(true), 2000)
-  }
+    setTimeout(() => setIsConnected(true), 2000);
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case "hot":
-        return "bg-red-100 text-red-800"
+        return "bg-red-100 text-red-800";
       case "warm":
-        return "bg-yellow-100 text-yellow-800"
+        return "bg-yellow-100 text-yellow-800";
       case "cold":
-        return "bg-blue-100 text-blue-800"
+        return "bg-blue-100 text-blue-800";
       default:
-        return "bg-gray-100 text-gray-800"
+        return "bg-gray-100 text-gray-800";
     }
-  }
+  };
 
   const getActivityIcon = (type: string) => {
     switch (type) {
       case "call":
-        return <Phone className="h-4 w-4" />
+        return <Phone className="h-4 w-4" />;
       case "email":
-        return <Mail className="h-4 w-4" />
+        return <Mail className="h-4 w-4" />;
       case "meeting":
-        return <Calendar className="h-4 w-4" />
+        return <Calendar className="h-4 w-4" />;
       default:
-        return <Users className="h-4 w-4" />
+        return <Users className="h-4 w-4" />;
     }
-  }
+  };
 
   const getConversationStatusColor = (status: string) => {
     switch (status) {
       case "active":
-        return "bg-green-100 text-green-800"
+        return "bg-green-100 text-green-800";
       case "pending":
-        return "bg-yellow-100 text-yellow-800"
+        return "bg-yellow-100 text-yellow-800";
       case "waiting":
-        return "bg-blue-100 text-blue-800"
+        return "bg-blue-100 text-blue-800";
       case "closed":
-        return "bg-gray-100 text-gray-800"
+        return "bg-gray-100 text-gray-800";
       default:
-        return "bg-gray-100 text-gray-800"
+        return "bg-gray-100 text-gray-800";
     }
-  }
+  };
 
   const getOpportunityStageColor = (stage: string) => {
     switch (stage) {
       case "qualification":
-        return "bg-blue-100 text-blue-800"
+        return "bg-blue-100 text-blue-800";
       case "proposal":
-        return "bg-yellow-100 text-yellow-800"
+        return "bg-yellow-100 text-yellow-800";
       case "negotiation":
-        return "bg-orange-100 text-orange-800"
+        return "bg-orange-100 text-orange-800";
       case "closed-won":
-        return "bg-green-100 text-green-800"
+        return "bg-green-100 text-green-800";
       case "closed-lost":
-        return "bg-red-100 text-red-800"
+        return "bg-red-100 text-red-800";
       default:
-        return "bg-gray-100 text-gray-800"
+        return "bg-gray-100 text-gray-800";
     }
-  }
+  };
 
   const handleReplyClick = (conversation: any) => {
     // Added function to handle reply button click
-    setSelectedConversation(conversation)
-    setIsConversationThreadOpen(true)
-  }
+    setSelectedConversation(conversation);
+    setIsConversationThreadOpen(true);
+  };
 
   const handleCreateOpportunity = () => {
-    setSelectedOpportunity(null)
-    setOpportunityModalMode("create")
-    setIsOpportunityModalOpen(true)
-  }
+    setSelectedOpportunity(null);
+    setOpportunityModalMode("create");
+    setIsOpportunityModalOpen(true);
+  };
 
   const handleEditOpportunity = (opportunity: any) => {
-    setSelectedOpportunity(opportunity)
-    setOpportunityModalMode("edit")
-    setIsOpportunityModalOpen(true)
-  }
+    setSelectedOpportunity(opportunity);
+    setOpportunityModalMode("edit");
+    setIsOpportunityModalOpen(true);
+  };
 
   if (!isConnected) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl font-bold">{"ICON AI Integration"}</CardTitle>
-            <CardDescription>Connect your account to manage contacts and leads</CardDescription>
+            <CardTitle className="text-2xl font-bold">
+              {"ICON AI Integration"}
+            </CardTitle>
+            <CardDescription>
+              Connect your account to manage contacts and leads
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="bg-muted p-4 rounded-lg">
@@ -272,7 +285,7 @@ export function GoHighLevelApp() {
             </div>
             <Button onClick={handleConnect} className="w-full" size="lg">
               <ExternalLink className="mr-2 h-4 w-4" />
-              Connect ICON AI 
+              Connect ICON AI
             </Button>
             <p className="text-xs text-muted-foreground text-center">
               You&#39;ll be redirected to ICON to authorize this app
@@ -280,7 +293,7 @@ export function GoHighLevelApp() {
           </CardContent>
         </Card>
       </div>
-    )
+    );
   }
 
   return (
@@ -291,7 +304,10 @@ export function GoHighLevelApp() {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <h1 className="text-2xl font-bold">{"ICON AI"}</h1>
-              <Badge variant="secondary" className="bg-accent text-accent-foreground">
+              <Badge
+                variant="secondary"
+                className="bg-accent text-accent-foreground"
+              >
                 Connected
               </Badge>
             </div>
@@ -310,8 +326,12 @@ export function GoHighLevelApp() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Total Contacts</p>
-                  <p className="text-2xl font-bold">{stats.totalContacts.toLocaleString()}</p>
+                  <p className="text-sm text-muted-foreground">
+                    Total Contacts
+                  </p>
+                  <p className="text-2xl font-bold">
+                    {stats.totalContacts.toLocaleString()}
+                  </p>
                 </div>
                 <Users className="h-8 w-8 text-primary" />
               </div>
@@ -334,7 +354,9 @@ export function GoHighLevelApp() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Conversion Rate</p>
+                  <p className="text-sm text-muted-foreground">
+                    Conversion Rate
+                  </p>
                   <p className="text-2xl font-bold">{stats.conversionRate}%</p>
                 </div>
                 <TrendingUp className="h-8 w-8 text-chart-3" />
@@ -398,7 +420,10 @@ export function GoHighLevelApp() {
                     >
                       <div className="flex items-center space-x-4">
                         <Avatar>
-                          <AvatarImage src={contact.avatar || "/placeholder.svg"} alt={contact.name} />
+                          <AvatarImage
+                            src={contact.avatar || "/placeholder.svg"}
+                            alt={contact.name}
+                          />
                           <AvatarFallback>
                             {contact.name
                               .split(" ")
@@ -408,12 +433,18 @@ export function GoHighLevelApp() {
                         </Avatar>
                         <div>
                           <p className="font-semibold">{contact.name}</p>
-                          <p className="text-sm text-muted-foreground">{contact.email}</p>
-                          <p className="text-sm text-muted-foreground">{contact.phone}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {contact.email}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {contact.phone}
+                          </p>
                         </div>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <Badge className={getStatusColor(contact.status)}>{contact.status}</Badge>
+                        <Badge className={getStatusColor(contact.status)}>
+                          {contact.status}
+                        </Badge>
                         <Button variant="outline" size="sm">
                           <Phone className="h-4 w-4 mr-2" />
                           Call
@@ -462,7 +493,10 @@ export function GoHighLevelApp() {
                       <div className="flex items-center space-x-4">
                         <div className="relative">
                           <Avatar>
-                            <AvatarImage src={conversation.avatar || "/placeholder.svg"} alt={conversation.contact} />
+                            <AvatarImage
+                              src={conversation.avatar || "/placeholder.svg"}
+                              alt={conversation.contact}
+                            />
                             <AvatarFallback>
                               {conversation.contact
                                 .split(" ")
@@ -477,14 +511,30 @@ export function GoHighLevelApp() {
                           )}
                         </div>
                         <div className="flex-1">
-                          <p className="font-semibold">{conversation.contact}</p>
-                          <p className="text-sm text-muted-foreground truncate max-w-md">{conversation.lastMessage}</p>
-                          <p className="text-xs text-muted-foreground">{conversation.timestamp}</p>
+                          <p className="font-semibold">
+                            {conversation.contact}
+                          </p>
+                          <p className="text-sm text-muted-foreground truncate max-w-md">
+                            {conversation.lastMessage}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {conversation.timestamp}
+                          </p>
                         </div>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <Badge className={getConversationStatusColor(conversation.status)}>{conversation.status}</Badge>
-                        <Button variant="outline" size="sm" onClick={() => handleReplyClick(conversation)}>
+                        <Badge
+                          className={getConversationStatusColor(
+                            conversation.status
+                          )}
+                        >
+                          {conversation.status}
+                        </Badge>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleReplyClick(conversation)}
+                        >
                           <MessageCircle className="h-4 w-4 mr-2" />
                           Reply
                         </Button>
@@ -529,8 +579,12 @@ export function GoHighLevelApp() {
                         <div className="flex items-center justify-between mb-2">
                           <h3 className="font-semibold">{opportunity.title}</h3>
                           <div className="text-right">
-                            <p className="font-bold text-lg">${opportunity.value.toLocaleString()}</p>
-                            <p className="text-sm text-muted-foreground">{opportunity.probability}% probability</p>
+                            <p className="font-bold text-lg">
+                              ${opportunity.value.toLocaleString()}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              {opportunity.probability}% probability
+                            </p>
                           </div>
                         </div>
                         <div className="flex items-center space-x-4 text-sm text-muted-foreground">
@@ -545,10 +599,18 @@ export function GoHighLevelApp() {
                         </div>
                       </div>
                       <div className="flex items-center space-x-2 ml-4">
-                        <Badge className={getOpportunityStageColor(opportunity.stage)}>
+                        <Badge
+                          className={getOpportunityStageColor(
+                            opportunity.stage
+                          )}
+                        >
                           {opportunity.stage.replace("-", " ")}
                         </Badge>
-                        <Button variant="outline" size="sm" onClick={() => handleEditOpportunity(opportunity)}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEditOpportunity(opportunity)}
+                        >
                           <Clock className="h-4 w-4 mr-2" />
                           Update
                         </Button>
@@ -564,18 +626,27 @@ export function GoHighLevelApp() {
             <Card>
               <CardHeader>
                 <CardTitle>Recent Activity</CardTitle>
-                <CardDescription>Latest interactions with your contacts</CardDescription>
+                <CardDescription>
+                  Latest interactions with your contacts
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   {recentActivities.map((activity) => (
-                    <div key={activity.id} className="flex items-center space-x-4 p-4 border rounded-lg">
-                      <div className="p-2 bg-primary/10 rounded-full">{getActivityIcon(activity.type)}</div>
+                    <div
+                      key={activity.id}
+                      className="flex items-center space-x-4 p-4 border rounded-lg"
+                    >
+                      <div className="p-2 bg-primary/10 rounded-full">
+                        {getActivityIcon(activity.type)}
+                      </div>
                       <div className="flex-1">
                         <p className="font-semibold capitalize">
                           {activity.type} with {activity.contact}
                         </p>
-                        <p className="text-sm text-muted-foreground">{activity.time}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {activity.time}
+                        </p>
                       </div>
                       <Button variant="outline" size="sm">
                         View Details
@@ -607,7 +678,10 @@ export function GoHighLevelApp() {
                     <span>Switch to Voice</span>
                   </Button>
                 </div>
-                <CardDescription>Chat with AI about your business, get insights, and manage your CRM</CardDescription>
+                <CardDescription>
+                  Chat with AI about your business, get insights, and manage
+                  your CRM
+                </CardDescription>
               </CardHeader>
               <div className="flex-1 flex flex-col">
                 <ChatInterface />
@@ -617,9 +691,10 @@ export function GoHighLevelApp() {
         </Tabs>
       </div>
 
-      
-
-      <VoiceChatModal isOpen={isVoiceChatOpen} onClose={() => setIsVoiceChatOpen(false)} />
+      <VoiceChatModal
+        isOpen={isVoiceChatOpen}
+        onClose={() => setIsVoiceChatOpen(false)}
+      />
 
       <ConversationThreadModal
         isOpen={isConversationThreadOpen}
@@ -634,5 +709,5 @@ export function GoHighLevelApp() {
         mode={opportunityModalMode}
       />
     </div>
-  )
+  );
 }
