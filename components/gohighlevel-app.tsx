@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   Users,
@@ -24,11 +23,14 @@ import {
   Bot,
   Sun,
   Moon,
+  ChevronLeft,
+  ChevronRight,
+  Activity,
 } from "lucide-react"
-import { VoiceChatModal } from "./voice-chat-modal" // Import voice chat modal
-import { ConversationThreadModal } from "./conversation-thread-modal" // Added conversation thread modal import
-import { OpportunityModal } from "./opportunity-modal" // Added opportunity modal import
-import { ChatInterface } from "./chat-interface" // Added AI Chat interface import
+import { VoiceChatModal } from "./voice-chat-modal"
+import { ConversationThreadModal } from "./conversation-thread-modal"
+import { OpportunityModal } from "./opportunity-modal"
+import { ChatInterface } from "./chat-interface"
 
 export function GoHighLevelApp() {
   const [isConnected, setIsConnected] = useState(false)
@@ -49,6 +51,8 @@ export function GoHighLevelApp() {
     enableEvening: false,
   })
   const [theme, setTheme] = useState<"light" | "dark">("light")
+  const [activeTab, setActiveTab] = useState("activity")
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
 
   // Mock data for demonstration
   const stats = {
@@ -334,92 +338,329 @@ export function GoHighLevelApp() {
     )
   }
 
+  const navigationItems = [
+    { id: "activity", label: "Recent Activity", icon: Activity },
+    { id: "contacts", label: "Contacts", icon: Users },
+    { id: "conversations", label: "Conversations", icon: MessageCircle },
+    { id: "opportunities", label: "Opportunities", icon: CircleDollarSignIcon },
+    { id: "chat", label: "IconAI", icon: Bot },
+    { id: "settings", label: "Settings", icon: Settings },
+  ]
+
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-card">
-        <div className="container mx-auto px-4 py-4">
+    <div className="min-h-screen bg-background flex">
+      {/* Sidebar */}
+      <aside
+        className={`${isSidebarCollapsed ? "w-16" : "w-64"} border-r bg-card transition-all duration-300 flex flex-col`}
+      >
+        {/* Sidebar Header */}
+        <div className="p-4 border-b">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <h1 className="text-2xl font-bold">{"ICON AI"}</h1>
-              <Badge variant="secondary" className="bg-accent text-accent-foreground">
-                Connected
-              </Badge>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Button variant="outline" size="sm" onClick={handleThemeChange}>
-                {getThemeIcon()}
-                
+            {!isSidebarCollapsed && (
+              <div className="flex items-center space-x-2">
+                <h1 className="text-xl font-bold">{"ICON AI"}</h1>
+                <Badge variant="secondary" className="bg-accent text-accent-foreground text-xs">
+                  Connected
+                </Badge>
+              </div>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+              className="ml-auto"
+            >
+              {isSidebarCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+            </Button>
+          </div>
+        </div>
+
+        {/* Navigation Items */}
+        <nav className="flex-1 p-2">
+          <div className={`${isSidebarCollapsed ? "flex flex-col items-center space-y-1" : "space-y-1"}`}>
+            {navigationItems.map((item) => {
+              const Icon = item.icon
+              return (
+                <Button
+                  key={item.id}
+                  variant={activeTab === item.id ? "default" : "ghost"}
+                  className={`${isSidebarCollapsed ? "h-12 w-12 p-0 justify-center" : "w-full justify-start px-3"}`}
+                  onClick={() => setActiveTab(item.id)}
+                >
+                  <Icon className={`h-4 w-4 ${isSidebarCollapsed ? "" : "mr-2"} flex-shrink-0`} />
+                  {!isSidebarCollapsed && <span>{item.label}</span>}
+                </Button>
+              )
+            })}
+          </div>
+        </nav>
+
+        {/* IconAI webinar cross-sell promotional box */}
+        {!isSidebarCollapsed && (
+          <div className="p-3 mx-2 mb-2">
+            <div className="bg-gradient-to-br from-primary/10 to-accent/10 border border-primary/20 rounded-lg p-4 space-y-3">
+              <div className="flex items-center space-x-2">
+                <Bot className="h-5 w-5 text-primary" />
+                <h3 className="font-semibold text-sm">IconAI Masterclass</h3>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Join our exclusive webinar: "10x Your Sales with AI Automation" - Learn advanced strategies to boost
+                conversions.
+              </p>
+              <Button size="sm" className="w-full text-xs h-8">
+                Register Free
               </Button>
             </div>
           </div>
-        </div>
-      </header>
+        )}
 
-      <div className="container mx-auto px-4 py-6">
+        {/* Theme Toggle */}
+        <div className="p-2 border-t">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleThemeChange}
+            className={`w-full ${isSidebarCollapsed ? "h-12 w-12 p-0 justify-center mx-auto" : "justify-start px-3"}`}
+          >
+            {getThemeIcon()}
+            {!isSidebarCollapsed && <span className="ml-2">Theme</span>}
+          </Button>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="flex-1 flex flex-col">
         {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Contacts</p>
-                  <p className="text-2xl font-bold">{stats.totalContacts.toLocaleString()}</p>
-                </div>
-                <Users className="h-8 w-8 text-primary" />
-              </div>
-            </CardContent>
-          </Card>
+        {activeTab === "activity" && (
+          <div className="p-6 border-b">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Total Contacts</p>
+                      <p className="text-2xl font-bold">{stats.totalContacts.toLocaleString()}</p>
+                    </div>
+                    <Users className="h-8 w-8 text-primary" />
+                  </div>
+                </CardContent>
+              </Card>
 
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">New Leads</p>
-                  <p className="text-2xl font-bold">{stats.newLeads}</p>
-                </div>
-                <UserPlus className="h-8 w-8 text-accent" />
-              </div>
-            </CardContent>
-          </Card>
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">New Leads</p>
+                      <p className="text-2xl font-bold">{stats.newLeads}</p>
+                    </div>
+                    <UserPlus className="h-8 w-8 text-accent" />
+                  </div>
+                </CardContent>
+              </Card>
 
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Conversion Rate</p>
-                  <p className="text-2xl font-bold">{stats.conversionRate}%</p>
-                </div>
-                <TrendingUp className="h-8 w-8 text-chart-3" />
-              </div>
-            </CardContent>
-          </Card>
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Conversion Rate</p>
+                      <p className="text-2xl font-bold">{stats.conversionRate}%</p>
+                    </div>
+                    <TrendingUp className="h-8 w-8 text-chart-3" />
+                  </div>
+                </CardContent>
+              </Card>
 
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Active Deals</p>
-                  <p className="text-2xl font-bold">{stats.activeDeals}</p>
-                </div>
-                <Calendar className="h-8 w-8 text-chart-4" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Active Deals</p>
+                      <p className="text-2xl font-bold">{stats.activeDeals}</p>
+                    </div>
+                    <Calendar className="h-8 w-8 text-chart-4" />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )}
 
-        {/* Main Content */}
-        <Tabs defaultValue="activity" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="activity">Recent Activity</TabsTrigger>
-            <TabsTrigger value="contacts">Contacts</TabsTrigger>
-            <TabsTrigger value="conversations">Conversations</TabsTrigger>
-            <TabsTrigger value="opportunities">Opportunities</TabsTrigger>
-            <TabsTrigger value="chat">Chat With AI</TabsTrigger>
-            <TabsTrigger value="settings">Settings</TabsTrigger>
-          </TabsList>
+        {/* Contacts Stats Overview */}
+        {activeTab === "contacts" && (
+          <div className="p-6 border-b">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Total Contacts</p>
+                      <p className="text-2xl font-bold">{recentContacts.length}</p>
+                    </div>
+                    <Users className="h-8 w-8 text-primary" />
+                  </div>
+                </CardContent>
+              </Card>
 
-          <TabsContent value="contacts" className="space-y-4">
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Hot Leads</p>
+                      <p className="text-2xl font-bold">{recentContacts.filter((c) => c.status === "hot").length}</p>
+                    </div>
+                    <TrendingUp className="h-8 w-8 text-red-500" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Warm Leads</p>
+                      <p className="text-2xl font-bold">{recentContacts.filter((c) => c.status === "warm").length}</p>
+                    </div>
+                    <UserPlus className="h-8 w-8 text-yellow-500" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Cold Leads</p>
+                      <p className="text-2xl font-bold">{recentContacts.filter((c) => c.status === "cold").length}</p>
+                    </div>
+                    <Users className="h-8 w-8 text-blue-500" />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )}
+
+        {/* Conversations Stats Overview */}
+        {activeTab === "conversations" && (
+          <div className="p-6 border-b">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Total Conversations</p>
+                      <p className="text-2xl font-bold">{conversations.length}</p>
+                    </div>
+                    <MessageCircle className="h-8 w-8 text-primary" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Active Conversations</p>
+                      <p className="text-2xl font-bold">{conversations.filter((c) => c.status === "active").length}</p>
+                    </div>
+                    <MessageCircle className="h-8 w-8 text-green-500" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Unread Messages</p>
+                      <p className="text-2xl font-bold">{conversations.reduce((sum, c) => sum + c.unread, 0)}</p>
+                    </div>
+                    <Mail className="h-8 w-8 text-accent" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Response Rate</p>
+                      <p className="text-2xl font-bold">87%</p>
+                    </div>
+                    <TrendingUp className="h-8 w-8 text-chart-3" />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )}
+
+        {/* Opportunities Stats Overview */}
+        {activeTab === "opportunities" && (
+          <div className="p-6 border-b">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Total Opportunities</p>
+                      <p className="text-2xl font-bold">{opportunities.length}</p>
+                    </div>
+                    <CircleDollarSignIcon className="h-8 w-8 text-primary" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Total Value</p>
+                      <p className="text-2xl font-bold">
+                        ${opportunities.reduce((sum, o) => sum + o.value, 0).toLocaleString()}
+                      </p>
+                    </div>
+                    <TrendingUp className="h-8 w-8 text-green-500" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Win Rate</p>
+                      <p className="text-2xl font-bold">
+                        {Math.round(
+                          (opportunities.filter((o) => o.stage === "closed-won").length / opportunities.length) * 100,
+                        )}
+                        %
+                      </p>
+                    </div>
+                    <TrendingUp className="h-8 w-8 text-chart-3" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Closing This Month</p>
+                      <p className="text-2xl font-bold">
+                        {opportunities.filter((o) => o.closeDate.includes("2024-02")).length}
+                      </p>
+                    </div>
+                    <Calendar className="h-8 w-8 text-chart-4" />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )}
+
+        <div className="flex-1 p-6 overflow-auto">
+          {activeTab === "contacts" && (
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -480,9 +721,9 @@ export function GoHighLevelApp() {
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
+          )}
 
-          <TabsContent value="conversations" className="space-y-4">
+          {activeTab === "conversations" && (
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -546,9 +787,9 @@ export function GoHighLevelApp() {
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
+          )}
 
-          <TabsContent value="opportunities" className="space-y-4">
+          {activeTab === "opportunities" && (
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -610,9 +851,9 @@ export function GoHighLevelApp() {
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
+          )}
 
-          <TabsContent value="activity" className="space-y-4">
+          {activeTab === "activity" && (
             <Card>
               <CardHeader>
                 <CardTitle>Recent Activity</CardTitle>
@@ -637,9 +878,9 @@ export function GoHighLevelApp() {
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
+          )}
 
-          <TabsContent value="chat" className="space-y-4">
+          {activeTab === "chat" && (
             <Card className="h-[600px] flex flex-col">
               <CardHeader className="border-b">
                 <div className="flex items-center justify-between">
@@ -663,9 +904,9 @@ export function GoHighLevelApp() {
                 <ChatInterface />
               </div>
             </Card>
-          </TabsContent>
+          )}
 
-          <TabsContent value="settings" className="space-y-4">
+          {activeTab === "settings" && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Connection Settings */}
               <Card>
@@ -855,9 +1096,9 @@ export function GoHighLevelApp() {
                 </CardContent>
               </Card>
             </div>
-          </TabsContent>
-        </Tabs>
-      </div>
+          )}
+        </div>
+      </main>
 
       <VoiceChatModal isOpen={isVoiceChatOpen} onClose={() => setIsVoiceChatOpen(false)} />
 
