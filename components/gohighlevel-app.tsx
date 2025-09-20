@@ -513,14 +513,13 @@ export function GoHighLevelApp() {
             variant="ghost"
             size="sm"
             onClick={handleThemeChange}
-            className={`w-full ${
+            className={`${
               isSidebarCollapsed
                 ? "h-12 w-12 p-0 justify-center mx-auto"
                 : "justify-start px-3"
             }`}
           >
             {getThemeIcon()}
-            {!isSidebarCollapsed && <span className="ml-2">Theme</span>}
           </Button>
         </div>
       </aside>
@@ -530,17 +529,30 @@ export function GoHighLevelApp() {
         {/* Mobile Header */}
         <div className="md:hidden sticky top-0 z-30 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
           <div className="h-14 px-4 flex items-center gap-3">
-            <Button variant="ghost" size="icon" aria-label="Open navigation" onClick={openDrawer}>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Open navigation"
+              onClick={openDrawer}
+            >
               <Menu className="h-5 w-5" />
             </Button>
             <div className="flex items-center gap-2">
               <h1 className="text-base font-semibold">Stratos AI</h1>
-              <Badge variant="secondary" className="bg-accent text-accent-foreground text-[10px] leading-none py-0.5 px-1.5">
+              <Badge
+                variant="secondary"
+                className="bg-accent text-accent-foreground text-[10px] leading-none py-0.5 px-1.5"
+              >
                 Connected
               </Badge>
             </div>
             <div className="ml-auto">
-              <Button variant="ghost" size="icon" onClick={handleThemeChange} aria-label="Toggle theme">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleThemeChange}
+                aria-label="Toggle theme"
+              >
                 {getThemeIcon()}
               </Button>
             </div>
@@ -1521,10 +1533,9 @@ export function GoHighLevelApp() {
                 variant="ghost"
                 size="sm"
                 onClick={handleThemeChange}
-                className="w-full justify-start px-3"
+                className="justify-start px-3"
               >
                 {getThemeIcon()}
-                <span className="ml-2">Theme</span>
               </Button>
             </div>
           </div>
