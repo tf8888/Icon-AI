@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -36,6 +36,8 @@ import {
   PenTool,
   Sprout,
   Loader2,
+  Menu,
+  X,
 } from "lucide-react";
 import { VoiceChatModal } from "./voice-chat-modal";
 import { ConversationThreadModal } from "./conversation-thread-modal";
@@ -67,6 +69,31 @@ export function GoHighLevelApp() {
   const [activeTab, setActiveTab] = useState("activity");
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const [showMobileNav, setShowMobileNav] = useState(false);
+
+  // Animate mount/unmount helpers for drawer
+  const openDrawer = () => {
+    setShowMobileNav(true);
+    // next frame so transition runs
+    requestAnimationFrame(() => setIsMobileNavOpen(true));
+  };
+
+  const closeDrawer = () => {
+    setIsMobileNavOpen(false);
+    // wait for transition to finish before unmount
+    setTimeout(() => setShowMobileNav(false), 300);
+  };
+
+  // Close mobile nav on ESC key
+  useEffect(() => {
+    if (!showMobileNav) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeDrawer();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [showMobileNav]);
 
   // Mock data for demonstration
   const stats = {
@@ -394,7 +421,7 @@ export function GoHighLevelApp() {
       <aside
         className={`${
           isSidebarCollapsed ? "w-16" : "w-64"
-        } border-r bg-card transition-all duration-300 flex flex-col`}
+        } border-r bg-card transition-all duration-300 flex-col hidden md:flex`}
       >
         {/* Sidebar Header */}
         <div className="p-4 border-b">
@@ -500,6 +527,25 @@ export function GoHighLevelApp() {
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col">
+        {/* Mobile Header */}
+        <div className="md:hidden sticky top-0 z-30 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
+          <div className="h-14 px-4 flex items-center gap-3">
+            <Button variant="ghost" size="icon" aria-label="Open navigation" onClick={openDrawer}>
+              <Menu className="h-5 w-5" />
+            </Button>
+            <div className="flex items-center gap-2">
+              <h1 className="text-base font-semibold">Stratos AI</h1>
+              <Badge variant="secondary" className="bg-accent text-accent-foreground text-[10px] leading-none py-0.5 px-1.5">
+                Connected
+              </Badge>
+            </div>
+            <div className="ml-auto">
+              <Button variant="ghost" size="icon" onClick={handleThemeChange} aria-label="Toggle theme">
+                {getThemeIcon()}
+              </Button>
+            </div>
+          </div>
+        </div>
         {/* Attract, Capture, Nurture, Convert Cards */}
 
         {/* Stats Overview */}
@@ -1415,6 +1461,75 @@ export function GoHighLevelApp() {
           )}
         </div>
       </main>
+
+      {/* Mobile Drawer */}
+      {showMobileNav && (
+        <>
+          {/* Overlay */}
+          <div
+            className={`fixed inset-0 z-40 bg-background/60 backdrop-blur-sm transition-opacity duration-300 ${
+              isMobileNavOpen ? "opacity-100" : "opacity-0"
+            }`}
+            onClick={closeDrawer}
+            aria-hidden="true"
+          />
+          {/* Panel */}
+          <div
+            role="dialog"
+            aria-modal="true"
+            className={`fixed inset-y-0 left-0 z-50 w-72 max-w-[80vw] bg-card border-r shadow-xl flex flex-col transform transition-transform duration-300 ${
+              isMobileNavOpen ? "translate-x-0" : "-translate-x-full"
+            }`}
+          >
+            <div className="h-14 px-4 border-b flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-semibold">Navigation</h2>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Close navigation"
+                onClick={closeDrawer}
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+            <nav className="p-3 flex-1 overflow-auto">
+              <div className="space-y-1">
+                {navigationItems.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = activeTab === item.id;
+                  return (
+                    <Button
+                      key={item.id}
+                      variant={isActive ? "default" : "ghost"}
+                      className="w-full justify-start px-3"
+                      onClick={() => {
+                        setActiveTab(item.id);
+                        closeDrawer();
+                      }}
+                    >
+                      <Icon className="h-4 w-4 mr-2" />
+                      <span>{item.label}</span>
+                    </Button>
+                  );
+                })}
+              </div>
+            </nav>
+            <div className="p-2 border-t">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleThemeChange}
+                className="w-full justify-start px-3"
+              >
+                {getThemeIcon()}
+                <span className="ml-2">Theme</span>
+              </Button>
+            </div>
+          </div>
+        </>
+      )}
 
       <VoiceChatModal
         isOpen={isVoiceChatOpen}
