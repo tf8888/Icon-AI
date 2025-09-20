@@ -1,16 +1,32 @@
 'use client';
 
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useUser } from '@clerk/nextjs';
 import { AppSidebar } from '@/components/app-sidebar';
+import Header from '@/components/header';
 
 export default function Layout({
     children,
 }: Readonly<{
     children: React.ReactNode;
 }>) {
+    const { isLoaded, isSignedIn } = useUser();
+    const router = useRouter();
+
+    useEffect(() => {
+        if (isLoaded && !isSignedIn) {
+            router.replace('/sign-in');
+        }
+    }, [isLoaded, isSignedIn, router]);
+
     return (
         <div className="min-h-screen bg-background flex">
             <AppSidebar />
-            <main className="flex-1 flex flex-col">{children}</main>
+            <div className="flex-1 flex flex-col">
+                <Header />
+                <main className="flex-1 flex flex-col">{children}</main>
+            </div>
         </div>
     );
 }
