@@ -1,17 +1,25 @@
 'use client'
 
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Settings, ExternalLink, Phone, Clock } from "lucide-react"
-import { useState } from "react"
+import { Phone, Clock } from "lucide-react"
+import { useState, useEffect } from "react"
+import { useUser } from "@clerk/nextjs"
+import createClerkSupabaseClient from "@/lib/clerkSupabaseClient"
 
 export default function SettingsPage() {
-    const [isConnected, setIsConnected] = useState(false);
+    const { user } = useUser()
+    const supabase = createClerkSupabaseClient();
 
-    const [apiKey, setApiKey] = useState("")
-    const [isApiKeyVisible, setIsApiKeyVisible] = useState(false)
+    const [pitToken, setPitToken] = useState("")
+    const [locationId, setLocationId] = useState("")
+    const [originalPitToken, setOriginalPitToken] = useState<string | null>(null)
+    const [originalLocationId, setOriginalLocationId] = useState<string | null>(null)
+    const [isEditing, setIsEditing] = useState(false)
+    const [loadingProfile, setLoadingProfile] = useState(true)
+    const [testResponse, setTestResponse] = useState<string | null>(null)
+    const [isSaving, setIsSaving] = useState(false)
 
     const [checkupCalls, setCheckupCalls] = useState({
         enabled: false,
@@ -27,21 +35,102 @@ export default function SettingsPage() {
         // Show success message or update UI
     }
 
-    const handleSaveApiKey = () => {
-        // In a real app, this would save to secure storage
-        console.log("API Key saved:", apiKey)
-        // Show success message or update UI
+    const handleSavePitAndLocation = async () => {
+        setIsSaving(true)
+        try {
+            const userId = user?.id
+            if (!userId) {
+                console.error('No authenticated user found; unable to save to profile')
+                setIsSaving(false)
+                return
+            }
+
+            const payload = {
+                user_id: userId,
+                ghl_pit_token: pitToken || null,
+                ghl_location_id: locationId || null,
+            }
+
+            const { error } = await supabase.from('profile').upsert(payload)
+
+            if (error) {
+                console.error('Failed to save GHL settings to profile:', error)
+            } else {
+                console.log('Saved GHL settings to profile table')
+                setOriginalPitToken(payload.ghl_pit_token ?? null)
+                setOriginalLocationId(payload.ghl_location_id ?? null)
+                setIsEditing(false)
+            }
+        } catch (err) {
+            console.error('Failed to save GHL settings', err)
+        } finally {
+            setIsSaving(false)
+        }
     }
 
-    const handleConnect = () => {
-        // In a real app, this would redirect to GoHighLevel OAuth
-        // For demo purposes, simulate connection
-        setTimeout(() => setIsConnected(true), 2000)
+    const handleCancelEdit = () => {
+        setPitToken(originalPitToken ?? "")
+        setLocationId(originalLocationId ?? "")
+        setIsEditing(false)
     }
 
-    const handleDisconnect = () => {
-        setIsConnected(false)
-        setApiKey("")
+    useEffect(() => {
+        const loadProfile = async () => {
+            setLoadingProfile(true)
+            try {
+                const userId = user?.id
+                if (!userId) {
+                    setLoadingProfile(false)
+                    return
+                }
+
+                const { data, error } = await supabase
+                    .from('profile')
+                    .select('ghl_pit_token,ghl_location_id')
+                    .eq('user_id', userId)
+                    .single()
+
+                if (error) {
+                    // no profile yet or other error
+                    console.debug('No profile found or error while fetching profile:', error.message || error)
+                }
+
+                if (data) {
+                    setOriginalPitToken(data.ghl_pit_token ?? null)
+                    setOriginalLocationId(data.ghl_location_id ?? null)
+                    setPitToken(data.ghl_pit_token ?? "")
+                    setLocationId(data.ghl_location_id ?? "")
+                }
+            } catch (err) {
+                console.error('Failed to load profile', err)
+            } finally {
+                setLoadingProfile(false)
+            }
+        }
+
+        loadProfile()
+    }, [user?.id])
+
+    const maskToken = (t?: string | null) => {
+        if (!t) return ''
+        if (t.length <= 8) return '•'.repeat(t.length)
+        return `${t.slice(0, 4)}…${t.slice(-4)}`
+    }
+
+    const handleTestMcp = async () => {
+        setTestResponse(null)
+        try {
+            const res = await fetch('/api/test-mcp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pitToken, locationId }),
+            })
+
+            const data = await res.json()
+            setTestResponse(JSON.stringify(data, null, 2))
+        } catch (err: any) {
+            setTestResponse(String(err?.message || err))
+        }
     }
 
     const handleCheckupCallUpdate = (field: string, value: any) => {
@@ -53,76 +142,79 @@ export default function SettingsPage() {
 
     return (
         <>
-            <div className="flex-1 p-6 overflow-auto">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Connection Settings */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center space-x-2">
-                                <Settings className="h-5 w-5" />
-                                <span>Connection Settings</span>
-                            </CardTitle>
-                            <CardDescription>Manage your GoHighLevel integration</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="flex items-center justify-between p-4 border rounded-lg">
-                                <div>
-                                    <p className="font-semibold">GoHighLevel</p>
-                                    <p className="text-sm text-muted-foreground">{isConnected ? "Connected" : "Disconnected"}</p>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                    <Badge
-                                        variant={isConnected ? "default" : "secondary"}
-                                        className={isConnected ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}
-                                    >
-                                        {isConnected ? "Active" : "Inactive"}
-                                    </Badge>
-                                    {isConnected && (
-                                        <Button variant="outline" size="sm" onClick={handleDisconnect}>
-                                            Disconnect
-                                        </Button>
-                                    )}
-                                </div>
-                            </div>
+            <div className="flex-1 p-6 overflow-auto space-y-6">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>GHL PIT & Location</CardTitle>
+                        <CardDescription>Configure PIT token and default Location ID for MCP calls</CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex flex-row space-x-4 items-start justify-start">
+                        <div className="space-y-2 w-full">
+                            {loadingProfile ? (
+                                <p className="text-sm text-muted-foreground">Loading...</p>
+                            ) : (
+                                <>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium">GHL PIT Token</label>
+                                        {!isEditing && originalPitToken ? (
+                                            <div className="flex items-center justify-between border rounded px-3 py-2">
+                                                <span className="text-sm">{maskToken(originalPitToken)}</span>
+                                                <Button size="sm" variant="outline" onClick={() => setIsEditing(true)}>Edit</Button>
+                                            </div>
+                                        ) : (
+                                            <Input
+                                                type="password"
+                                                placeholder="Enter your GHL PIT token"
+                                                value={pitToken}
+                                                onChange={(e) => setPitToken(e.target.value)}
+                                            />
+                                        )}
+                                        <p className="text-xs text-muted-foreground">Used to authenticate MCP requests (PIT token)</p>
+                                    </div>
 
-                            {!isConnected && (
-                                <Button onClick={handleConnect} className="w-full">
-                                    <ExternalLink className="mr-2 h-4 w-4" />
-                                    Reconnect to GoHighLevel
-                                </Button>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium">Location ID</label>
+                                        {!isEditing && originalLocationId ? (
+                                            <div className="flex items-center justify-between border rounded px-3 py-2">
+                                                <span className="text-sm">{originalLocationId}</span>
+                                                <Button size="sm" variant="outline" onClick={() => setIsEditing(true)}>Edit</Button>
+                                            </div>
+                                        ) : (
+                                            <Input
+                                                placeholder="Enter default Location ID"
+                                                value={locationId}
+                                                onChange={(e) => setLocationId(e.target.value)}
+                                            />
+                                        )}
+                                        <p className="text-xs text-muted-foreground">Optional — used as `locationId` header when calling MCP</p>
+                                    </div>
+
+                                    <div className="flex space-x-2">
+                                        {isEditing ? (
+                                            <>
+                                                <Button onClick={handleSavePitAndLocation} className="flex-1" disabled={isSaving}>
+                                                    {isSaving ? 'Saving...' : 'Save GHL Settings'}
+                                                </Button>
+                                                <Button variant="ghost" onClick={handleCancelEdit} className="w-40">
+                                                    Cancel
+                                                </Button>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Button onClick={handleSavePitAndLocation} className="flex-1" disabled={isSaving}>
+                                                    {isSaving ? 'Saving...' : 'Save GHL Settings'}
+                                                </Button>
+                                                <Button variant="outline" onClick={handleTestMcp} className="w-40">
+                                                    Test MCP Connection
+                                                </Button>
+                                            </>
+                                        )}
+                                    </div>
+                                </>
                             )}
-                        </CardContent>
-                    </Card>
+                        </div>
 
-                    {/* API Key Settings */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>API Configuration</CardTitle>
-                            <CardDescription>Manage your GoHighLevel API key</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium">API Key</label>
-                                <div className="flex space-x-2">
-                                    <Input
-                                        type={isApiKeyVisible ? "text" : "password"}
-                                        placeholder="Enter your GoHighLevel API key"
-                                        value={apiKey}
-                                        onChange={(e) => setApiKey(e.target.value)}
-                                        className="flex-1"
-                                    />
-                                    <Button variant="outline" size="sm" onClick={() => setIsApiKeyVisible(!isApiKeyVisible)}>
-                                        {isApiKeyVisible ? "Hide" : "Show"}
-                                    </Button>
-                                </div>
-                                <p className="text-xs text-muted-foreground">Your API key is encrypted and stored securely</p>
-                            </div>
-
-                            <Button onClick={handleSaveApiKey} className="w-full">
-                                Save API Key
-                            </Button>
-
-                            <div className="p-3 bg-muted rounded-lg">
+                        {/* <div className="p-3 bg-muted rounded-lg">
                                 <p className="text-sm font-medium mb-1">How to get your API key:</p>
                                 <ol className="text-xs text-muted-foreground space-y-1">
                                     <li>1. Log into your GoHighLevel account</li>
@@ -131,118 +223,121 @@ export default function SettingsPage() {
                                     <li>4. Generate a new API key</li>
                                     <li>5. Copy and paste it here</li>
                                 </ol>
-                            </div>
-                        </CardContent>
-                    </Card>
+                            </div> */}
 
-                    <Card className="md:col-span-2">
-                        <CardHeader>
-                            <CardTitle className="flex items-center space-x-2">
-                                <Phone className="h-5 w-5" />
-                                <span>AI Checkup Calls</span>
-                            </CardTitle>
-                            <CardDescription>
-                                Configure automated checkup calls with your AI assistant (maximum 2 per day)
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-6">
-                            {/* Enable/Disable Toggle */}
-                            <div className="flex items-center justify-between p-4 border rounded-lg">
-                                <div>
-                                    <p className="font-semibold">Enable AI Checkup Calls</p>
-                                    <p className="text-sm text-muted-foreground">
-                                        Receive automated calls to discuss your business progress
-                                    </p>
+                        {testResponse && (
+                            <pre className="w-full h-[372px] mt-2 p-2 bg-slate-800 text-white rounded text-xs overflow-auto">{testResponse}</pre>
+                        )}
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center space-x-2">
+                            <Phone className="h-5 w-5" />
+                            <span>AI Checkup Calls</span>
+                        </CardTitle>
+                        <CardDescription>
+                            Configure automated checkup calls with your AI assistant (maximum 2 per day)
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        {/* Enable/Disable Toggle */}
+                        <div className="flex items-center justify-between p-4 border rounded-lg">
+                            <div>
+                                <p className="font-semibold">Enable AI Checkup Calls</p>
+                                <p className="text-sm text-muted-foreground">
+                                    Receive automated calls to discuss your business progress
+                                </p>
+                            </div>
+                            <Button
+                                variant={checkupCalls.enabled ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => handleCheckupCallUpdate("enabled", !checkupCalls.enabled)}
+                            >
+                                {checkupCalls.enabled ? "Enabled" : "Disabled"}
+                            </Button>
+                        </div>
+
+                        {checkupCalls.enabled && (
+                            <div className="space-y-4">
+                                {/* Morning Call Settings */}
+                                <div className="p-4 border rounded-lg space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="font-medium">Morning Checkup</p>
+                                            <p className="text-sm text-muted-foreground">Start your day with business insights</p>
+                                        </div>
+                                        <Button
+                                            variant={checkupCalls.enableMorning ? "default" : "outline"}
+                                            size="sm"
+                                            onClick={() => handleCheckupCallUpdate("enableMorning", !checkupCalls.enableMorning)}
+                                        >
+                                            {checkupCalls.enableMorning ? "On" : "Off"}
+                                        </Button>
+                                    </div>
+                                    {checkupCalls.enableMorning && (
+                                        <div className="flex items-center space-x-2">
+                                            <Clock className="h-4 w-4 text-muted-foreground" />
+                                            <Input
+                                                type="time"
+                                                value={checkupCalls.morningTime}
+                                                onChange={(e) => handleCheckupCallUpdate("morningTime", e.target.value)}
+                                                className="w-32"
+                                            />
+                                            <span className="text-sm text-muted-foreground">Daily call time</span>
+                                        </div>
+                                    )}
                                 </div>
-                                <Button
-                                    variant={checkupCalls.enabled ? "default" : "outline"}
-                                    size="sm"
-                                    onClick={() => handleCheckupCallUpdate("enabled", !checkupCalls.enabled)}
-                                >
-                                    {checkupCalls.enabled ? "Enabled" : "Disabled"}
+
+                                {/* Evening Call Settings */}
+                                <div className="p-4 border rounded-lg space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="font-medium">Evening Checkup</p>
+                                            <p className="text-sm text-muted-foreground">Review your day and plan ahead</p>
+                                        </div>
+                                        <Button
+                                            variant={checkupCalls.enableEvening ? "default" : "outline"}
+                                            size="sm"
+                                            onClick={() => handleCheckupCallUpdate("enableEvening", !checkupCalls.enableEvening)}
+                                        >
+                                            {checkupCalls.enableEvening ? "On" : "Off"}
+                                        </Button>
+                                    </div>
+                                    {checkupCalls.enableEvening && (
+                                        <div className="flex items-center space-x-2">
+                                            <Clock className="h-4 w-4 text-muted-foreground" />
+                                            <Input
+                                                type="time"
+                                                value={checkupCalls.eveningTime}
+                                                onChange={(e) => handleCheckupCallUpdate("eveningTime", e.target.value)}
+                                                className="w-32"
+                                            />
+                                            <span className="text-sm text-muted-foreground">Daily call time</span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Call Topics */}
+                                <div className="p-4 bg-muted rounded-lg">
+                                    <p className="text-sm font-medium mb-2">What we'll discuss:</p>
+                                    <ul className="text-sm text-muted-foreground space-y-1">
+                                        <li>• Daily lead and opportunity updates</li>
+                                        <li>• Conversion rate analysis and recommendations</li>
+                                        <li>• Priority tasks and action items</li>
+                                        <li>• Business performance insights</li>
+                                        <li>• Strategic planning and goal tracking</li>
+                                    </ul>
+                                </div>
+
+                                <Button onClick={handleSaveCheckupSettings} className="w-full">
+                                    Save Checkup Call Settings
                                 </Button>
                             </div>
-
-                            {checkupCalls.enabled && (
-                                <div className="space-y-4">
-                                    {/* Morning Call Settings */}
-                                    <div className="p-4 border rounded-lg space-y-3">
-                                        <div className="flex items-center justify-between">
-                                            <div>
-                                                <p className="font-medium">Morning Checkup</p>
-                                                <p className="text-sm text-muted-foreground">Start your day with business insights</p>
-                                            </div>
-                                            <Button
-                                                variant={checkupCalls.enableMorning ? "default" : "outline"}
-                                                size="sm"
-                                                onClick={() => handleCheckupCallUpdate("enableMorning", !checkupCalls.enableMorning)}
-                                            >
-                                                {checkupCalls.enableMorning ? "On" : "Off"}
-                                            </Button>
-                                        </div>
-                                        {checkupCalls.enableMorning && (
-                                            <div className="flex items-center space-x-2">
-                                                <Clock className="h-4 w-4 text-muted-foreground" />
-                                                <Input
-                                                    type="time"
-                                                    value={checkupCalls.morningTime}
-                                                    onChange={(e) => handleCheckupCallUpdate("morningTime", e.target.value)}
-                                                    className="w-32"
-                                                />
-                                                <span className="text-sm text-muted-foreground">Daily call time</span>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* Evening Call Settings */}
-                                    <div className="p-4 border rounded-lg space-y-3">
-                                        <div className="flex items-center justify-between">
-                                            <div>
-                                                <p className="font-medium">Evening Checkup</p>
-                                                <p className="text-sm text-muted-foreground">Review your day and plan ahead</p>
-                                            </div>
-                                            <Button
-                                                variant={checkupCalls.enableEvening ? "default" : "outline"}
-                                                size="sm"
-                                                onClick={() => handleCheckupCallUpdate("enableEvening", !checkupCalls.enableEvening)}
-                                            >
-                                                {checkupCalls.enableEvening ? "On" : "Off"}
-                                            </Button>
-                                        </div>
-                                        {checkupCalls.enableEvening && (
-                                            <div className="flex items-center space-x-2">
-                                                <Clock className="h-4 w-4 text-muted-foreground" />
-                                                <Input
-                                                    type="time"
-                                                    value={checkupCalls.eveningTime}
-                                                    onChange={(e) => handleCheckupCallUpdate("eveningTime", e.target.value)}
-                                                    className="w-32"
-                                                />
-                                                <span className="text-sm text-muted-foreground">Daily call time</span>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* Call Topics */}
-                                    <div className="p-4 bg-muted rounded-lg">
-                                        <p className="text-sm font-medium mb-2">What we'll discuss:</p>
-                                        <ul className="text-sm text-muted-foreground space-y-1">
-                                            <li>• Daily lead and opportunity updates</li>
-                                            <li>• Conversion rate analysis and recommendations</li>
-                                            <li>• Priority tasks and action items</li>
-                                            <li>• Business performance insights</li>
-                                            <li>• Strategic planning and goal tracking</li>
-                                        </ul>
-                                    </div>
-
-                                    <Button onClick={handleSaveCheckupSettings} className="w-full">
-                                        Save Checkup Call Settings
-                                    </Button>
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
-                </div>
+                        )}
+                    </CardContent>
+                </Card>
             </div>
         </>
     )
