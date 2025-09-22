@@ -7,15 +7,15 @@ import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'v0 App',
-  description: 'Created with v0',
-  generator: 'v0.app',
-}
+  title: "Stratos AI",
+  description: "Created with Stratos AI",
+  generator: "Stratos AI",
+};
 
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode
+  children: React.ReactNode;
 }>) {
   return (
     <html lang="en">
@@ -26,5 +26,5 @@ export default function RootLayout({
         </ClerkProvider>
       </body>
     </html>
-  )
+  );
 }
