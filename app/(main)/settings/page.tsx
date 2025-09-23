@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Phone, Clock } from "lucide-react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useUser } from "@clerk/nextjs"
 import createClerkSupabaseClient from "@/lib/clerkSupabaseClient"
 
@@ -29,6 +29,11 @@ export default function SettingsPage() {
         enableEvening: false,
     })
 
+    // VAPI phone number state
+    const [vapiPhoneNumber, setVapiPhoneNumber] = useState<string>("");
+    const [loadingPhoneNumber, setLoadingPhoneNumber] = useState(false);
+    const [phoneNumberError, setPhoneNumberError] = useState<string | null>(null);
+
     const handleSaveCheckupSettings = () => {
         // In a real app, this would save to backend
         console.log("Checkup call settings saved:", checkupCalls)
@@ -46,12 +51,14 @@ export default function SettingsPage() {
             }
 
             const payload = {
-                user_id: userId,
                 ghl_pit_token: pitToken || null,
                 ghl_location_id: locationId || null,
             }
 
-            const { error } = await supabase.from('profile').upsert(payload)
+            console.log(">>>>", payload, userId);
+
+            const { error } = await supabase.from('profile').update(payload).eq("user_id", userId)
+
 
             if (error) {
                 console.error('Failed to save GHL settings to profile:', error)
@@ -73,6 +80,24 @@ export default function SettingsPage() {
         setLocationId(originalLocationId ?? "")
         setIsEditing(false)
     }
+
+    // Load phone number from profile on mount
+    useEffect(() => {
+        const loadPhoneNumber = async () => {
+            if (!user?.id) return;
+            const { data } = await supabase
+                .from("profile")
+                .select("vapi_phone_number")
+                .eq("user_id", user.id)
+                .single();
+            if (data && data.vapi_phone_number) {
+                setVapiPhoneNumber(data.vapi_phone_number);
+            } else {
+                setVapiPhoneNumber("");
+            }
+        };
+        loadPhoneNumber();
+    }, [user?.id, supabase])
 
     useEffect(() => {
         const loadProfile = async () => {
@@ -133,12 +158,55 @@ export default function SettingsPage() {
         }
     }
 
-    const handleCheckupCallUpdate = (field: string, value: any) => {
+    const handleCheckupCallUpdate = async (field: string, value: any) => {
         setCheckupCalls((prev) => ({
             ...prev,
             [field]: value,
         }))
+
+        try {
+            const res = await fetch('https://agentoagents.app.n8n.cloud/webhook-test/8dc332bb-97a1-4e0e-8b37-3c8f82c939e4', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(checkupCalls),
+            })
+
+            const data = await res.json()
+            console.log("::::", data);
+
+            // setTestResponse(JSON.stringify(data, null, 2))
+        } catch (err: any) {
+            // setTestResponse(String(err?.message || err))
+        }
     }
+
+    // Handler to create a new phone number for the user
+    const handleCreatePhoneNumber = async () => {
+        if (!user?.id) return;
+        setLoadingPhoneNumber(true);
+        setPhoneNumberError(null);
+        try {
+            const res = await fetch("/api/vapi/phone-numbers", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ user_id: user.id }),
+            });
+            const result = await res.json();
+            const newNumber = result?.phoneNumber;
+            if (newNumber) {
+
+                setVapiPhoneNumber(newNumber);
+                // Save to DB
+                await supabase.from("profile").update({ vapi_phone_number: newNumber }).eq("user_id", user.id);
+            } else {
+                setPhoneNumberError("Failed to create phone number");
+            }
+        } catch (err: any) {
+            setPhoneNumberError(err?.message || "Failed to create phone number");
+        } finally {
+            setLoadingPhoneNumber(false);
+        }
+    };
 
     return (
         <>
@@ -233,6 +301,36 @@ export default function SettingsPage() {
 
                 <Card>
                     <CardHeader>
+                        <CardTitle>VAPI Phone Number</CardTitle>
+                        <CardDescription>
+                            {vapiPhoneNumber
+                                ? `Your VAPI phone number: ${vapiPhoneNumber}`
+                                : "You do not have a VAPI phone number yet."}
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-2">
+                            {vapiPhoneNumber ? (
+                                <>
+                                    <div className="flex items-center justify-between border rounded px-3 py-2">
+                                        <span className="text-sm">{vapiPhoneNumber}</span>
+                                        {/* <Button onClick={handleCreatePhoneNumber} disabled={loadingPhoneNumber}>
+                                            {loadingPhoneNumber ? "Creating..." : "Create New Phone Number"}
+                                        </Button> */}
+                                    </div>
+                                </>
+                            ) : (
+                                <Button onClick={handleCreatePhoneNumber} disabled={loadingPhoneNumber}>
+                                    {loadingPhoneNumber ? "Creating..." : "Create Phone Number"}
+                                </Button>
+                            )}
+                            {phoneNumberError && <p className="text-xs text-red-500">{phoneNumberError}</p>}
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
                         <CardTitle className="flex items-center space-x-2">
                             <Phone className="h-5 w-5" />
                             <span>AI Checkup Calls</span>
@@ -254,6 +352,7 @@ export default function SettingsPage() {
                                 variant={checkupCalls.enabled ? "default" : "outline"}
                                 size="sm"
                                 onClick={() => handleCheckupCallUpdate("enabled", !checkupCalls.enabled)}
+                                disabled={!pitToken || !vapiPhoneNumber}
                             >
                                 {checkupCalls.enabled ? "Enabled" : "Disabled"}
                             </Button>

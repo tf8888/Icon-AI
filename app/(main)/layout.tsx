@@ -23,7 +23,7 @@ export default function Layout({
     return (
         <div className="min-h-screen bg-background flex">
             <AppSidebar />
-            <div className="flex-1 flex flex-col">
+            <div className="flex-1 flex flex-col h-screen overflow-auto">
                 <Header />
                 <main className="flex-1 flex flex-col">{children}</main>
             </div>
