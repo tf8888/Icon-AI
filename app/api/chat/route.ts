@@ -24,37 +24,15 @@ export async function POST(request: NextRequest) {
   try {
     const { messages } = await request.json();
 
-    // Dynamic import to avoid build-time issues
-    const { generate } = await import('@genkit-ai/core');
-    const { gemini15Flash } = await import('@genkit-ai/googleai');
-    
-    // Initialize Genkit configuration
-    await import('@/lib/genkit');
+    // Import Genkit configuration
+    const { ai } = await import('@/lib/genkit');
 
-    // Prepare messages with system prompt
-    const formattedMessages = [
-      { role: 'system' as const, content: SYSTEM_PROMPT },
-      ...messages,
-    ];
+    // Prepare the prompt with system message and user messages
+    const conversationHistory = messages.map((msg: any) => `${msg.role}: ${msg.content}`).join('\n');
+    const prompt = `${SYSTEM_PROMPT}\n\nConversation:\n${conversationHistory}\n\nAssistant:`;
 
-    // Get available tools from MCP server
-    const availableTools = mcpServer.getAvailableTools();
-    
-    // Convert MCP tools to Genkit tool format
-    const genkitTools = availableTools.map(tool => ({
-      name: tool.name,
-      description: tool.description,
-      inputSchema: tool.inputSchema,
-      execute: async (input: any) => {
-        const result = await mcpServer.executeTool(tool.name, input);
-        return result.content[0]?.text || 'No result';
-      }
-    }));
-
-    const response = await generate({
-      model: gemini15Flash,
-      messages: formattedMessages,
-      tools: genkitTools,
+    const response = await ai.generate({
+      prompt,
       config: {
         temperature: 0.7,
         maxOutputTokens: 1000,
@@ -66,7 +44,7 @@ export async function POST(request: NextRequest) {
     const stream = new ReadableStream({
       start(controller) {
         // Send the response text as a stream
-        const text = response.text();
+        const text = response.text;
         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: text })}\n\n`));
         controller.close();
       },
