@@ -9,6 +9,7 @@ import {
   Sun,
   ChevronLeft,
   ChevronRight,
+  Home,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import Link from "next/link";
@@ -24,7 +25,7 @@ const navigationItems = [
   {
     id: "activity",
     label: "Dashboard",
-    icon: Activity,
+    icon: Home,
     href: "/activity",
   },
   { id: "contacts", label: "Contacts", icon: Users, href: "/contacts" },
