@@ -1,10 +1,10 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { generateText } from "ai"
-import { openai } from "@ai-sdk/openai"
+import { type NextRequest, NextResponse } from "next/server";
+import { generateText } from "ai";
+import { openai } from "@ai-sdk/openai";
 
 export async function POST(request: NextRequest) {
   try {
-    const { messages } = await request.json()
+    const { messages } = await request.json();
 
     const { text } = await generateText({
       model: openai("gpt-4o-mini"),
@@ -26,12 +26,14 @@ Keep responses concise but informative. If asked about specific CRM data, acknow
         },
         ...messages,
       ],
-      maxTokens: 500,
-    })
+    });
 
-    return NextResponse.json({ content: text })
+    return NextResponse.json({ content: text });
   } catch (error) {
-    console.error("Chat API error:", error)
-    return NextResponse.json({ error: "Failed to generate response" }, { status: 500 })
+    console.error("Chat API error:", error);
+    return NextResponse.json(
+      { error: "Failed to generate response" },
+      { status: 500 }
+    );
   }
 }

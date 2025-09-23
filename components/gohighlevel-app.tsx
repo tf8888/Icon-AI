@@ -38,14 +38,39 @@ import {
   Loader2,
   Menu,
   X,
+  Home,
 } from "lucide-react";
 import { VoiceChatModal } from "./voice-chat-modal";
 import { ConversationThreadModal } from "./conversation-thread-modal";
 import { OpportunityModal } from "./opportunity-modal";
 import { ChatInterface } from "./chat-interface";
 
+const generateSnapshot = async (locationId: string) => {
+  const res = await fetch("/api/ghl/snapshots?location_id=" + locationId);
+  return res.json().then((data) => data.snapshot);
+};
+
+const sendCheckUpCall = async (locationId: string) => {
+  const res = await fetch("/api/vapi/assistants/sendCheckupCall", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      snapshot: (await generateSnapshot(locationId)) || "No snapshot available",
+      locationId,
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(
+      `Failed to create assistant: ${res.status} ${err?.error ?? ""}`
+    );
+  }
+  const assistant = await res.json();
+  return assistant;
+};
+
 export function GoHighLevelApp() {
-  const [isConnected, setIsConnected] = useState(false);
+  const [isConnected, setIsConnected] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [isVoiceChatOpen, setIsVoiceChatOpen] = useState(false); // Added voice chat modal state
   const [selectedConversation, setSelectedConversation] = useState<any>(null); // Added state for conversation thread modal
@@ -407,7 +432,7 @@ export function GoHighLevelApp() {
   }
 
   const navigationItems = [
-    { id: "activity", label: "Activity", icon: Activity },
+    { id: "activity", label: "Dashboard", icon: Home },
     { id: "contacts", label: "Contacts", icon: Users },
     { id: "conversations", label: "Conversations", icon: MessageCircle },
     { id: "opportunities", label: "Opportunities", icon: CircleDollarSignIcon },
@@ -485,6 +510,22 @@ export function GoHighLevelApp() {
             })}
           </div>
         </nav>
+
+        {/* Send Check Up Call Button */}
+        {/* {!isSidebarCollapsed && (
+          <div className="p-3 mx-2 mb-2 text-center space-y-2">
+            <Button
+              className="w-full"
+              onClick={() => sendCheckUpCall("location_id")}
+            >
+              <Phone className="mr-2" /> Send Check Up Call
+            </Button>
+            <hr className="my-2" />
+            <div className="text-xs text-muted-foreground">
+              Next checkup call: {checkupCalls.morningTime}
+            </div>
+          </div>
+        )} */}
 
         {/* Stratos AI webinar cross-sell promotional box */}
         {!isSidebarCollapsed && (
@@ -1215,7 +1256,7 @@ export function GoHighLevelApp() {
           {activeTab === "settings" && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Connection Settings */}
-              <Card>
+              {/* <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center space-x-2">
                     <Settings className="h-5 w-5" />
@@ -1263,10 +1304,10 @@ export function GoHighLevelApp() {
                     </Button>
                   )}
                 </CardContent>
-              </Card>
+              </Card> */}
 
               {/* API Key Settings */}
-              <Card>
+              <Card className="md:col-span-2">
                 <CardHeader>
                   <CardTitle>API Configuration</CardTitle>
                   <CardDescription>
