@@ -81,7 +81,7 @@ export function AppSidebar() {
   return (
     <aside
       className={`${
-        isSidebarCollapsed ? "w-16" : "w-64"
+        isSidebarCollapsed ? "w-16" : "w-64 "
       } border-r bg-card transition-all duration-300 flex-col hidden md:flex`}
     >
       {/* Sidebar Header */}
