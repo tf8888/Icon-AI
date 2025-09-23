@@ -74,16 +74,54 @@ export function ChatInterface() {
         throw new Error("Failed to get response")
       }
 
-      const data = await response.json()
+      // Handle streaming response
+      const reader = response.body?.getReader()
+      const decoder = new TextDecoder()
+      
+      if (!reader) {
+        throw new Error("No response body")
+      }
 
-      const assistantMessage: Message = {
+      let assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: data.content,
+        content: "",
         timestamp: new Date(),
       }
 
+      // Add the assistant message to show loading state
       setMessages((prev) => [...prev, assistantMessage])
+
+      let done = false
+      while (!done) {
+        const { value, done: readerDone } = await reader.read()
+        done = readerDone
+        
+        if (value) {
+          const chunk = decoder.decode(value)
+          const lines = chunk.split('\n')
+          
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(line.slice(6))
+                if (data.content) {
+                  assistantMessage.content = data.content
+                  setMessages((prev) => 
+                    prev.map((msg) => 
+                      msg.id === assistantMessage.id 
+                        ? { ...msg, content: data.content }
+                        : msg
+                    )
+                  )
+                }
+              } catch (parseError) {
+                console.error("Error parsing streaming data:", parseError)
+              }
+            }
+          }
+        }
+      }
     } catch (error) {
       console.error("Chat error:", error)
       const errorMessage: Message = {
