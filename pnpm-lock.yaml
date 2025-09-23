@@ -14,6 +14,9 @@ importers:
       '@genkit-ai/flow':
         specifier: ^0.5.17
         version: 0.5.17
+      '@genkit-ai/google-genai':
+        specifier: ^1.19.3
+        version: 1.19.3(genkit@1.19.3(@google-cloud/firestore@7.11.5)(firebase-admin@13.5.0))
       '@genkit-ai/googleai':
         specifier: ^1.19.3
         version: 1.19.3(genkit@1.19.3(@google-cloud/firestore@7.11.5)(firebase-admin@13.5.0))
@@ -128,6 +131,9 @@ importers:
       geist:
         specifier: latest
         version: 1.5.1(next@14.2.16(@opentelemetry/api@1.9.0)(react-dom@18.0.0(react@18.0.0))(react@18.0.0))
+      genkit:
+        specifier: ^1.19.3
+        version: 1.19.3(@google-cloud/firestore@7.11.5)(firebase-admin@13.5.0)
       input-otp:
         specifier: 1.4.1
         version: 1.4.1(react-dom@18.0.0(react@18.0.0))(react@18.0.0)
@@ -301,6 +307,11 @@ packages:
 
   '@genkit-ai/google-cloud@1.19.3':
     resolution: {integrity: sha512-Vwe9sfm1EuGKZA8CMFezqmOwxXve8pd5NaXXHl1OOUXr3KEAgQJOu/3nR/ZNRbQsC96GPaOF8dejQnWZCRAPZQ==}
+    peerDependencies:
+      genkit: ^1.19.3
+
+  '@genkit-ai/google-genai@1.19.3':
+    resolution: {integrity: sha512-vpjG8fQYu5YDs+LS1YuzjDz/Mb7eovKrvAsRPvXxD/ea24l4a//OSrq+V7Yn+PoQmXtCNXknWXSJ5LYyUUPSxw==}
     peerDependencies:
       genkit: ^1.19.3
 
@@ -3843,6 +3854,14 @@ snapshots:
       - encoding
       - supports-color
     optional: true
+
+  '@genkit-ai/google-genai@1.19.3(genkit@1.19.3(@google-cloud/firestore@7.11.5)(firebase-admin@13.5.0))':
+    dependencies:
+      genkit: 1.19.3(@google-cloud/firestore@7.11.5)(firebase-admin@13.5.0)
+      google-auth-library: 9.15.1
+    transitivePeerDependencies:
+      - encoding
+      - supports-color
 
   '@genkit-ai/googleai@1.19.3(genkit@1.19.3(@google-cloud/firestore@7.11.5)(firebase-admin@13.5.0))':
     dependencies:
