@@ -39,6 +39,7 @@ import {
   Menu,
   X,
   Home,
+  File,
 } from "lucide-react";
 import { VoiceChatModal } from "./voice-chat-modal";
 import { ConversationThreadModal } from "./conversation-thread-modal";
@@ -434,10 +435,10 @@ export function GoHighLevelApp() {
 
   const navigationItems = [
     { id: "activity", label: "Dashboard", icon: Home },
+    { id: "calendar", label: "Calendar", icon: Calendar },
     { id: "contacts", label: "Contacts", icon: Users },
     { id: "conversations", label: "Conversations", icon: MessageCircle },
-    { id: "opportunities", label: "Opportunities", icon: CircleDollarSignIcon },
-    { id: "settings", label: "Settings", icon: Settings },
+    { id: "invoices", label: "Invoices", icon: File },
   ];
 
   return (
@@ -509,6 +510,26 @@ export function GoHighLevelApp() {
               );
             })}
           </div>
+          {/* Stratos AI webinar cross-sell promotional box */}
+          {!isSidebarCollapsed && (
+            <div className="p-3 mb-2">
+              <div className="bg-gradient-to-br from-primary/10 to-accent/10 border border-primary/20 rounded-lg p-4 space-y-3">
+                <div className="flex items-center space-x-2">
+                  <Bot className="h-5 w-5 text-primary" />
+                  <h3 className="font-semibold text-sm">
+                    Stratos AI Masterclass
+                  </h3>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Join our exclusive webinar: "10x Your Sales with AI
+                  Automation" - Learn advanced strategies to boost conversions.
+                </p>
+                <Button size="sm" className="w-full text-xs h-8">
+                  Register Free
+                </Button>
+              </div>
+            </div>
+          )}
         </nav>
 
         {/* Send Check Up Call Button */}
@@ -528,47 +549,48 @@ export function GoHighLevelApp() {
         )} */}
 
         {/* Floating Chat Button */}
-        <div className="p-3 mx-2 mb-2">
+        <div className="p-3 mx-auto mb-2 w-full">
           <Button
             onClick={() => setIsChatModalOpen(true)}
             className={`${
               isSidebarCollapsed
-                ? "h-12 w-12 p-0 justify-center mx-auto rounded-full"
-                : "w-full justify-start px-3 h-12 rounded-lg"
-            } bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg transition-all duration-200 hover:shadow-xl`}
+                ? "h-10 w-10 p-0 justify-center mx-auto rounded-full"
+                : "w-full justify-start px-3 h-12 rounded-lg text-center"
+            } bg-primary hover:bg-primary/90 text-white shadow-lg transition-all duration-200 hover:shadow-xl`}
           >
             <Bot
               className={`h-5 w-5 ${
                 isSidebarCollapsed ? "" : "mr-2"
               } flex-shrink-0`}
             />
-            {!isSidebarCollapsed && <span className="font-medium">Chat with Stratos AI</span>}
+            {!isSidebarCollapsed && (
+              <span className="font-medium">Launch Stratos AI</span>
+            )}
           </Button>
         </div>
 
-        {/* Stratos AI webinar cross-sell promotional box */}
-        {!isSidebarCollapsed && (
-          <div className="p-3 mx-2 mb-2">
-            <div className="bg-gradient-to-br from-primary/10 to-accent/10 border border-primary/20 rounded-lg p-4 space-y-3">
-              <div className="flex items-center space-x-2">
-                <Bot className="h-5 w-5 text-primary" />
-                <h3 className="font-semibold text-sm">
-                  Stratos AI Masterclass
-                </h3>
-              </div>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Join our exclusive webinar: "10x Your Sales with AI Automation"
-                - Learn advanced strategies to boost conversions.
-              </p>
-              <Button size="sm" className="w-full text-xs h-8">
-                Register Free
-              </Button>
-            </div>
-          </div>
-        )}
+        {/* Bottom Section - Settings and Theme */}
+        <div className="p-2 border-t space-y-1">
+          {/* Settings Button */}
+          <Button
+            variant={activeTab === "settings" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => setActiveTab("settings")}
+            className={`${
+              isSidebarCollapsed
+                ? "h-12 w-12 p-0 justify-center mx-auto"
+                : "w-full justify-start px-3"
+            }`}
+          >
+            <Settings
+              className={`h-4 w-4 ${
+                isSidebarCollapsed ? "" : "mr-2"
+              } flex-shrink-0`}
+            />
+            {!isSidebarCollapsed && <span>Settings</span>}
+          </Button>
 
-        {/* Theme Toggle */}
-        <div className="p-2 border-t">
+          {/* Theme Toggle */}
           <Button
             variant="ghost"
             size="sm"
@@ -576,10 +598,11 @@ export function GoHighLevelApp() {
             className={`${
               isSidebarCollapsed
                 ? "h-12 w-12 p-0 justify-center mx-auto"
-                : "justify-start px-3"
+                : "w-full justify-start px-3"
             }`}
           >
             {getThemeIcon()}
+            {!isSidebarCollapsed && <span className="ml-2">Toggle Theme</span>}
           </Button>
         </div>
       </aside>
@@ -1243,7 +1266,6 @@ export function GoHighLevelApp() {
             </Card>
           )}
 
-
           {activeTab === "settings" && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Connection Settings */}
@@ -1560,14 +1582,30 @@ export function GoHighLevelApp() {
                 })}
               </div>
             </nav>
-            <div className="p-2 border-t">
+            <div className="p-2 border-t space-y-1">
+              {/* Settings Button */}
+              <Button
+                variant={activeTab === "settings" ? "default" : "ghost"}
+                size="sm"
+                className="w-full justify-start px-3"
+                onClick={() => {
+                  setActiveTab("settings");
+                  closeDrawer();
+                }}
+              >
+                <Settings className="h-4 w-4 mr-2" />
+                <span>Settings</span>
+              </Button>
+
+              {/* Theme Toggle */}
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={handleThemeChange}
-                className="justify-start px-3"
+                className="w-full justify-start px-3"
               >
                 {getThemeIcon()}
+                <span className="ml-2">Toggle Theme</span>
               </Button>
             </div>
           </div>
