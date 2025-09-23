@@ -38,16 +38,43 @@ import {
   Loader2,
   Menu,
   X,
+  Home,
+  File,
 } from "lucide-react";
 import { VoiceChatModal } from "./voice-chat-modal";
 import { ConversationThreadModal } from "./conversation-thread-modal";
 import { OpportunityModal } from "./opportunity-modal";
-import { ChatInterface } from "./chat-interface";
+import { ChatModal } from "./chat-modal";
+
+const generateSnapshot = async (locationId: string) => {
+  const res = await fetch("/api/ghl/snapshots?location_id=" + locationId);
+  return res.json().then((data) => data.snapshot);
+};
+
+const sendCheckUpCall = async (locationId: string) => {
+  const res = await fetch("/api/vapi/assistants/sendCheckupCall", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      snapshot: (await generateSnapshot(locationId)) || "No snapshot available",
+      locationId,
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(
+      `Failed to create assistant: ${res.status} ${err?.error ?? ""}`
+    );
+  }
+  const assistant = await res.json();
+  return assistant;
+};
 
 export function GoHighLevelApp() {
-  const [isConnected, setIsConnected] = useState(false);
+  const [isConnected, setIsConnected] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [isVoiceChatOpen, setIsVoiceChatOpen] = useState(false); // Added voice chat modal state
+  const [isChatModalOpen, setIsChatModalOpen] = useState(false); // Added chat modal state
   const [selectedConversation, setSelectedConversation] = useState<any>(null); // Added state for conversation thread modal
   const [isConversationThreadOpen, setIsConversationThreadOpen] =
     useState(false); // Added state for conversation thread modal
@@ -407,12 +434,11 @@ export function GoHighLevelApp() {
   }
 
   const navigationItems = [
-    { id: "activity", label: "Activity", icon: Activity },
+    { id: "activity", label: "Dashboard", icon: Home },
+    { id: "calendar", label: "Calendar", icon: Calendar },
     { id: "contacts", label: "Contacts", icon: Users },
     { id: "conversations", label: "Conversations", icon: MessageCircle },
-    { id: "opportunities", label: "Opportunities", icon: CircleDollarSignIcon },
-    { id: "chat", label: "Stratos", icon: Bot },
-    { id: "settings", label: "Settings", icon: Settings },
+    { id: "invoices", label: "Invoices", icon: File },
   ];
 
   return (
@@ -484,31 +510,87 @@ export function GoHighLevelApp() {
               );
             })}
           </div>
+          {/* Stratos AI webinar cross-sell promotional box */}
+          {!isSidebarCollapsed && (
+            <div className="p-3 mb-2">
+              <div className="bg-gradient-to-br from-primary/10 to-accent/10 border border-primary/20 rounded-lg p-4 space-y-3">
+                <div className="flex items-center space-x-2">
+                  <Bot className="h-5 w-5 text-primary" />
+                  <h3 className="font-semibold text-sm">
+                    Stratos AI Masterclass
+                  </h3>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Join our exclusive webinar: "10x Your Sales with AI
+                  Automation" - Learn advanced strategies to boost conversions.
+                </p>
+                <Button size="sm" className="w-full text-xs h-8">
+                  Register Free
+                </Button>
+              </div>
+            </div>
+          )}
         </nav>
 
-        {/* Stratos AI webinar cross-sell promotional box */}
-        {!isSidebarCollapsed && (
-          <div className="p-3 mx-2 mb-2">
-            <div className="bg-gradient-to-br from-primary/10 to-accent/10 border border-primary/20 rounded-lg p-4 space-y-3">
-              <div className="flex items-center space-x-2">
-                <Bot className="h-5 w-5 text-primary" />
-                <h3 className="font-semibold text-sm">
-                  Stratos AI Masterclass
-                </h3>
-              </div>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Join our exclusive webinar: "10x Your Sales with AI Automation"
-                - Learn advanced strategies to boost conversions.
-              </p>
-              <Button size="sm" className="w-full text-xs h-8">
-                Register Free
-              </Button>
+        {/* Send Check Up Call Button */}
+        {/* {!isSidebarCollapsed && (
+          <div className="p-3 mx-2 mb-2 text-center space-y-2">
+            <Button
+              className="w-full"
+              onClick={() => sendCheckUpCall("location_id")}
+            >
+              <Phone className="mr-2" /> Send Check Up Call
+            </Button>
+            <hr className="my-2" />
+            <div className="text-xs text-muted-foreground">
+              Next checkup call: {checkupCalls.morningTime}
             </div>
           </div>
-        )}
+        )} */}
 
-        {/* Theme Toggle */}
-        <div className="p-2 border-t">
+        {/* Floating Chat Button */}
+        <div className="p-3 mx-auto mb-2 w-full">
+          <Button
+            onClick={() => setIsChatModalOpen(true)}
+            className={`${
+              isSidebarCollapsed
+                ? "h-10 w-10 p-0 justify-center mx-auto rounded-full"
+                : "w-full justify-start px-3 h-12 rounded-lg text-center"
+            } bg-primary hover:bg-primary/90 text-white shadow-lg transition-all duration-200 hover:shadow-xl`}
+          >
+            <Bot
+              className={`h-5 w-5 ${
+                isSidebarCollapsed ? "" : "mr-2"
+              } flex-shrink-0`}
+            />
+            {!isSidebarCollapsed && (
+              <span className="font-medium">Launch Stratos AI</span>
+            )}
+          </Button>
+        </div>
+
+        {/* Bottom Section - Settings and Theme */}
+        <div className="p-2 border-t space-y-1">
+          {/* Settings Button */}
+          <Button
+            variant={activeTab === "settings" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => setActiveTab("settings")}
+            className={`${
+              isSidebarCollapsed
+                ? "h-12 w-12 p-0 justify-center mx-auto"
+                : "w-full justify-start px-3"
+            }`}
+          >
+            <Settings
+              className={`h-4 w-4 ${
+                isSidebarCollapsed ? "" : "mr-2"
+              } flex-shrink-0`}
+            />
+            {!isSidebarCollapsed && <span>Settings</span>}
+          </Button>
+
+          {/* Theme Toggle */}
           <Button
             variant="ghost"
             size="sm"
@@ -516,10 +598,11 @@ export function GoHighLevelApp() {
             className={`${
               isSidebarCollapsed
                 ? "h-12 w-12 p-0 justify-center mx-auto"
-                : "justify-start px-3"
+                : "w-full justify-start px-3"
             }`}
           >
             {getThemeIcon()}
+            {!isSidebarCollapsed && <span className="ml-2">Toggle Theme</span>}
           </Button>
         </div>
       </aside>
@@ -1183,39 +1266,10 @@ export function GoHighLevelApp() {
             </Card>
           )}
 
-          {activeTab === "chat" && (
-            <Card className="h-[600px] flex flex-col">
-              <CardHeader className="border-b">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Bot className="h-5 w-5 text-primary" />
-                    <CardTitle>AI Business Assistant</CardTitle>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIsVoiceChatOpen(true)}
-                    className="flex items-center space-x-2"
-                  >
-                    <Mic className="h-4 w-4" />
-                    <span>Switch to Voice</span>
-                  </Button>
-                </div>
-                <CardDescription>
-                  Chat with AI about your business, get insights, and manage
-                  your CRM
-                </CardDescription>
-              </CardHeader>
-              <div className="flex-1 flex flex-col">
-                <ChatInterface />
-              </div>
-            </Card>
-          )}
-
           {activeTab === "settings" && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Connection Settings */}
-              <Card>
+              {/* <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center space-x-2">
                     <Settings className="h-5 w-5" />
@@ -1263,10 +1317,10 @@ export function GoHighLevelApp() {
                     </Button>
                   )}
                 </CardContent>
-              </Card>
+              </Card> */}
 
               {/* API Key Settings */}
-              <Card>
+              <Card className="md:col-span-2">
                 <CardHeader>
                   <CardTitle>API Configuration</CardTitle>
                   <CardDescription>
@@ -1528,19 +1582,44 @@ export function GoHighLevelApp() {
                 })}
               </div>
             </nav>
-            <div className="p-2 border-t">
+            <div className="p-2 border-t space-y-1">
+              {/* Settings Button */}
+              <Button
+                variant={activeTab === "settings" ? "default" : "ghost"}
+                size="sm"
+                className="w-full justify-start px-3"
+                onClick={() => {
+                  setActiveTab("settings");
+                  closeDrawer();
+                }}
+              >
+                <Settings className="h-4 w-4 mr-2" />
+                <span>Settings</span>
+              </Button>
+
+              {/* Theme Toggle */}
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={handleThemeChange}
-                className="justify-start px-3"
+                className="w-full justify-start px-3"
               >
                 {getThemeIcon()}
+                <span className="ml-2">Toggle Theme</span>
               </Button>
             </div>
           </div>
         </>
       )}
+
+      <ChatModal
+        isOpen={isChatModalOpen}
+        onClose={() => setIsChatModalOpen(false)}
+        onSwitchToVoice={() => {
+          setIsChatModalOpen(false);
+          setIsVoiceChatOpen(true);
+        }}
+      />
 
       <VoiceChatModal
         isOpen={isVoiceChatOpen}
