@@ -116,8 +116,8 @@ export function AppSidebar() {
       <nav className="flex-1 p-2">
         <div
           className={`${isSidebarCollapsed
-              ? "flex flex-col items-center space-y-1"
-              : "space-y-1"
+            ? "flex flex-col items-center space-y-1"
+            : "space-y-1"
             }`}
         >
           {navigationItems.map((item) => {
@@ -130,8 +130,8 @@ export function AppSidebar() {
                 key={item.id}
                 variant={isActive ? "default" : "ghost"}
                 className={`${isSidebarCollapsed
-                    ? "h-12 w-12 p-0 justify-center"
-                    : "w-full justify-start px-3"
+                  ? "h-12 w-12 p-0 justify-center"
+                  : "w-full justify-start px-3"
                   }`}
               >
                 <Link href={item.href} className="flex items-center w-full">
@@ -188,8 +188,8 @@ export function AppSidebar() {
         <Button
           onClick={() => setIsChatModalOpen(true)}
           className={`${isSidebarCollapsed
-              ? "h-10 w-10 p-0 justify-center mx-auto rounded-full"
-              : "w-full justify-start px-3 h-12 rounded-lg text-center"
+            ? "h-10 w-10 p-0 justify-center mx-auto rounded-full"
+            : "w-full justify-start px-3 h-12 rounded-lg text-center"
             } bg-primary hover:bg-primary/90 text-white shadow-lg transition-all duration-200 hover:shadow-xl`}
         >
           <Bot
@@ -215,17 +215,19 @@ export function AppSidebar() {
         {/* Settings Button */}
         <Button
           size="sm"
-          variant="ghost"
+          variant={pathname === "/settings" || pathname?.startsWith("/settings" + "/") ? "default" : "ghost"}
           className={`${isSidebarCollapsed
-              ? "h-12 w-12 p-0 justify-center mx-auto"
-              : "w-full justify-start px-3"
+            ? "h-12 w-12 p-0 justify-center mx-auto"
+            : "w-full justify-start px-3"
             }`}
         >
-          <Settings
-            className={`h-4 w-4 ${isSidebarCollapsed ? "" : "mr-2"
-              } flex-shrink-0`}
-          />
-          {!isSidebarCollapsed && <span>Settings</span>}
+          <Link href="/settings" className="flex items-center w-full">
+            <Settings
+              className={`h-4 w-4 ${isSidebarCollapsed ? "" : "mr-2"
+                } flex-shrink-0`}
+            />
+            {!isSidebarCollapsed && <span className="ml-2">Settings</span>}
+          </Link>
         </Button>
 
         {/* Theme Toggle */}
@@ -234,8 +236,8 @@ export function AppSidebar() {
           size="sm"
           onClick={handleThemeChange}
           className={`${isSidebarCollapsed
-              ? "h-12 w-12 p-0 justify-center mx-auto"
-              : "w-full justify-start px-3"
+            ? "h-12 w-12 p-0 justify-center mx-auto"
+            : "w-full justify-start px-3"
             }`}
         >
           {getThemeIcon()}
