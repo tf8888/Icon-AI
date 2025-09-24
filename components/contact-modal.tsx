@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useEffect, useState } from "react"
 import { GHLCreateContactData, GHLContact } from "@/lib/services/ghlContactsService"
+import { useToast } from "@/hooks/use-toast"
 
 interface ContactModalProps {
     open: boolean
@@ -27,6 +28,7 @@ export function ContactModal({
     contact,
     loading = false
 }: ContactModalProps) {
+    const { toast } = useToast();
     const [formData, setFormData] = useState<GHLCreateContactData>({
         firstName: contact?.firstName || '',
         lastName: contact?.lastName || '',
@@ -44,6 +46,55 @@ export function ContactModal({
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
+
+        // Validate required fields
+        if (!formData.firstName?.trim()) {
+            toast({
+                title: "Validation Error",
+                description: "First name is required",
+                variant: "destructive"
+            });
+            return;
+        }
+
+        if (!formData.lastName?.trim()) {
+            toast({
+                title: "Validation Error",
+                description: "Last name is required",
+                variant: "destructive"
+            });
+            return;
+        }
+
+        if (!formData.email?.trim()) {
+            toast({
+                title: "Validation Error",
+                description: "Email is required",
+                variant: "destructive"
+            });
+            return;
+        }
+
+        if (!formData.country?.trim()) {
+            toast({
+                title: "Validation Error",
+                description: "Country is required",
+                variant: "destructive"
+            });
+            return;
+        }
+
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(formData.email)) {
+            toast({
+                title: "Validation Error",
+                description: "Please enter a valid email address",
+                variant: "destructive"
+            });
+            return;
+        }
+
         await onSubmit(formData)
         onOpenChange(false)
         // Reset form
@@ -70,6 +121,21 @@ export function ContactModal({
     useEffect(() => {
         if (contact) {
             setFormData(contact)
+        } else {
+            setFormData({
+                firstName: '',
+                lastName: '',
+                email: '',
+                phone: '',
+                companyName: '',
+                address1: '',
+                city: '',
+                state: '',
+                postalCode: '',
+                country: '',
+                website: '',
+                source: '',
+            })
         }
     }, [contact])
 
@@ -90,33 +156,37 @@ export function ContactModal({
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <Label htmlFor="firstName">First Name</Label>
+                            <Label htmlFor="firstName">First Name <span className="text-red-500">*</span></Label>
                             <Input
                                 id="firstName"
                                 value={formData.firstName || ''}
                                 onChange={(e) => handleChange('firstName', e.target.value)}
                                 required
+                                placeholder="Enter first name"
                             />
                         </div>
                         <div>
-                            <Label htmlFor="lastName">Last Name</Label>
+                            <Label htmlFor="lastName">Last Name <span className="text-red-500">*</span></Label>
                             <Input
                                 id="lastName"
                                 value={formData.lastName || ''}
                                 onChange={(e) => handleChange('lastName', e.target.value)}
                                 required
+                                placeholder="Enter last name"
                             />
                         </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <Label htmlFor="email">Email</Label>
+                            <Label htmlFor="email">Email <span className="text-red-500">*</span></Label>
                             <Input
                                 id="email"
                                 type="email"
                                 value={formData.email || ''}
                                 onChange={(e) => handleChange('email', e.target.value)}
+                                required
+                                placeholder="Enter email address"
                             />
                         </div>
                         <div>
@@ -126,6 +196,7 @@ export function ContactModal({
                                 type="tel"
                                 value={formData.phone || ''}
                                 onChange={(e) => handleChange('phone', e.target.value)}
+                                placeholder="Enter phone number"
                             />
                         </div>
                     </div>
@@ -136,6 +207,7 @@ export function ContactModal({
                             id="companyName"
                             value={formData.companyName || ''}
                             onChange={(e) => handleChange('companyName', e.target.value)}
+                            placeholder="Enter company name"
                         />
                     </div>
 
@@ -145,6 +217,7 @@ export function ContactModal({
                             id="address1"
                             value={formData.address1 || ''}
                             onChange={(e) => handleChange('address1', e.target.value)}
+                            placeholder="Enter street address"
                         />
                     </div>
 
@@ -155,6 +228,7 @@ export function ContactModal({
                                 id="city"
                                 value={formData.city || ''}
                                 onChange={(e) => handleChange('city', e.target.value)}
+                                placeholder="Enter city"
                             />
                         </div>
                         <div>
@@ -163,6 +237,7 @@ export function ContactModal({
                                 id="state"
                                 value={formData.state || ''}
                                 onChange={(e) => handleChange('state', e.target.value)}
+                                placeholder="Enter state/province"
                             />
                         </div>
                         <div>
@@ -171,17 +246,20 @@ export function ContactModal({
                                 id="postalCode"
                                 value={formData.postalCode || ''}
                                 onChange={(e) => handleChange('postalCode', e.target.value)}
+                                placeholder="Enter postal code"
                             />
                         </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <Label htmlFor="country">Country</Label>
+                            <Label htmlFor="country">Country <span className="text-red-500">*</span></Label>
                             <Input
                                 id="country"
                                 value={formData.country || ''}
                                 onChange={(e) => handleChange('country', e.target.value)}
+                                required
+                                placeholder="Enter country"
                             />
                         </div>
                         <div>
@@ -191,6 +269,7 @@ export function ContactModal({
                                 type="url"
                                 value={formData.website || ''}
                                 onChange={(e) => handleChange('website', e.target.value)}
+                                placeholder="https://example.com"
                             />
                         </div>
                     </div>

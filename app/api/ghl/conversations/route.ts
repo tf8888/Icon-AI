@@ -1,65 +1,94 @@
-import { type NextRequest, NextResponse } from "next/server"
+import { type NextRequest, NextResponse } from "next/server";
+import { GHLConversationsService } from "@/lib/services/ghlConversationsService";
 
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url)
-  const accessToken = searchParams.get("access_token")
-  const locationId = searchParams.get("location_id")
+  const { searchParams } = new URL(request.url);
+  const accessToken = searchParams.get("access_token");
+  const locationId = searchParams.get("location_id");
+  const query = searchParams.get("query");
+  const limit = searchParams.get("limit");
 
   if (!accessToken || !locationId) {
-    return NextResponse.json({ error: "Missing access token or location ID" }, { status: 400 })
+    return NextResponse.json(
+      { error: "Missing access token or location ID" },
+      { status: 400 }
+    );
   }
 
   try {
-    const response = await fetch(`https://services.leadconnectorhq.com/conversations/`, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        Version: "2021-07-28",
-        "Content-Type": "application/json",
-      },
-    })
+    const conversationsService = new GHLConversationsService(
+      accessToken,
+      locationId
+    );
 
-    if (!response.ok) {
-      throw new Error(`GoHighLevel API error: ${response.status}`)
+    const params = {
+      limit: limit ? parseInt(limit) : undefined,
+      query: query || undefined,
+      sort: "desc" as const,
+      sortBy: "date_updated",
+    };
+
+    let data;
+    if (query) {
+      data = await conversationsService.searchConversationsByQuery(
+        query,
+        params.limit
+      );
+    } else {
+      data = await conversationsService.getConversations(params);
     }
 
-    const data = await response.json()
-    return NextResponse.json(data)
+    return NextResponse.json(data);
   } catch (error) {
-    console.error("Error fetching conversations:", error)
-    return NextResponse.json({ error: "Failed to fetch conversations" }, { status: 500 })
+    console.error("Error fetching conversations:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch conversations" },
+      { status: 500 }
+    );
   }
 }
 
 export async function POST(request: NextRequest) {
-  const { accessToken, locationId, contactId, message } = await request.json()
+  const {
+    accessToken,
+    locationId,
+    contactId,
+    message,
+    type = "SMS",
+    subject,
+    emailTo,
+    emailFrom,
+  } = await request.json();
 
   if (!accessToken || !locationId || !contactId || !message) {
-    return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
+    return NextResponse.json(
+      { error: "Missing required fields" },
+      { status: 400 }
+    );
   }
 
   try {
-    const response = await fetch(`https://services.leadconnectorhq.com/conversations/messages`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        Version: "2021-07-28",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        type: "SMS",
-        contactId,
-        message,
-      }),
-    })
+    const conversationsService = new GHLConversationsService(
+      accessToken,
+      locationId
+    );
 
-    if (!response.ok) {
-      throw new Error(`GoHighLevel API error: ${response.status}`)
-    }
+    const messageData = {
+      type: type as "SMS" | "Email" | "Call" | "WhatsApp" | "GMB" | "FB",
+      contactId,
+      message,
+      ...(subject && { subject }),
+      ...(emailTo && { emailTo }),
+      ...(emailFrom && { emailFrom }),
+    };
 
-    const data = await response.json()
-    return NextResponse.json(data)
+    const data = await conversationsService.createMessage(messageData);
+    return NextResponse.json(data);
   } catch (error) {
-    console.error("Error sending message:", error)
-    return NextResponse.json({ error: "Failed to send message" }, { status: 500 })
+    console.error("Error sending message:", error);
+    return NextResponse.json(
+      { error: "Failed to send message" },
+      { status: 500 }
+    );
   }
 }

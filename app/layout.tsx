@@ -4,6 +4,7 @@ import { GeistMono } from 'geist/font/mono'
 import * as ClerkNext from '@clerk/nextjs'
 const ClerkProvider: any = (ClerkNext as any).ClerkProvider
 import { Analytics } from '@vercel/analytics/next'
+import { Toaster } from '@/components/ui/toaster'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -23,6 +24,7 @@ export default function RootLayout({
         <ClerkProvider>
           {children}
           <Analytics />
+          <Toaster />
         </ClerkProvider>
       </body>
     </html>

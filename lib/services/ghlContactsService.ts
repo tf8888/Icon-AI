@@ -84,6 +84,19 @@ export interface GHLCreateContactData {
 
 export interface GHLUpdateContactData extends GHLCreateContactData {
   id: string;
+  // Read-only properties that may be present but should be filtered out
+  locationId?: string;
+  contactName?: string;
+  firstNameRaw?: string;
+  lastNameRaw?: string;
+  dateAdded?: string;
+  dateUpdated?: string;
+  followers?: any[];
+  // Additional potentially read-only properties
+  name?: string;
+  timezone?: string;
+  dnd?: boolean;
+  dndSettings?: any;
 }
 
 // GHL Contacts API Service
@@ -112,8 +125,24 @@ export class GHLContactsService {
     });
 
     if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`GHL API Error: ${response.status} - ${error}`);
+      const errorText = await response.text();
+      let errorMessage = `GHL API Error: ${response.status}`;
+
+      try {
+        const errorData = JSON.parse(errorText);
+        if (errorData.message) {
+          errorMessage = errorData.message;
+        } else if (errorData.error) {
+          errorMessage = errorData.error;
+        }
+      } catch (e) {
+        // If not valid JSON, use the raw text
+        if (errorText) {
+          errorMessage = errorText;
+        }
+      }
+
+      throw new Error(errorMessage);
     }
 
     return response.json();
@@ -162,12 +191,27 @@ export class GHLContactsService {
     contactId: string,
     contactData: GHLUpdateContactData
   ): Promise<GHLContact> {
+    // Filter out read-only properties that shouldn't be sent to the API
+    const {
+      id,
+      locationId,
+      contactName,
+      firstNameRaw,
+      lastNameRaw,
+      dateAdded,
+      dateUpdated,
+      followers,
+      timezone,
+      dnd,
+      dndSettings,
+      ...updateData
+    } = contactData;
+
+    console.log("Updating contact with filtered data:", updateData);
+
     return this.makeRequest(`/contacts/${contactId}`, {
       method: "PUT",
-      body: JSON.stringify({
-        ...contactData,
-        locationId: this.locationId,
-      }),
+      body: JSON.stringify(updateData),
     });
   }
 

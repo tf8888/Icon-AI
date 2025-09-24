@@ -85,7 +85,7 @@ export default function ContactsPage() {
             console.error('Error creating contact:', error);
             toast({
                 title: "Error",
-                description: "Failed to create contact",
+                description: error.message || "Failed to create contact",
                 variant: "destructive"
             });
         } finally {
@@ -112,7 +112,7 @@ export default function ContactsPage() {
             console.error('Error updating contact:', error);
             toast({
                 title: "Error",
-                description: "Failed to update contact",
+                description: error.message || "Failed to update contact",
                 variant: "destructive"
             });
         } finally {
@@ -136,7 +136,7 @@ export default function ContactsPage() {
             console.error('Error deleting contact:', error);
             toast({
                 title: "Error",
-                description: "Failed to delete contact",
+                description: error.message || "Failed to delete contact",
                 variant: "destructive"
             });
         } finally {
