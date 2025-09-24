@@ -3,10 +3,13 @@
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Phone, Clock } from "lucide-react"
+import { Label } from "@/components/ui/label"
+import { Phone, Clock, Save, Loader2 } from "lucide-react"
 import { useState, useEffect, useCallback } from "react"
-import { useUser } from "@clerk/nextjs"
+import { useProfile } from "@/lib/contexts/ProfileContext"
+import { useToast } from "@/hooks/use-toast"
 import createClerkSupabaseClient from "@/lib/clerkSupabaseClient"
+import { useUser } from "@clerk/nextjs"
 
 export default function SettingsPage() {
     const { user } = useUser()
