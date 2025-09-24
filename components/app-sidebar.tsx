@@ -1,14 +1,13 @@
 import {
-  Activity,
   Users,
   MessageCircle,
   CircleDollarSignIcon,
   Bot,
   Settings,
-  Moon,
-  Sun,
   ChevronLeft,
   ChevronRight,
+  Home,
+  Calendar,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import Link from "next/link";
@@ -19,13 +18,20 @@ import { ChatModal } from "./chat-modal";
 import { OpportunityModal } from "./opportunity-modal";
 import { ConversationThreadModal } from "./conversation-thread-modal";
 import { VoiceChatModal } from "./voice-chat-modal";
+import { useRouter } from "next/navigation";
 
 const navigationItems = [
   {
     id: "activity",
     label: "Dashboard",
-    icon: Activity,
+    icon: Home,
     href: "/activity",
+  },
+  {
+    id: "calendar",
+    label: "Calendar",
+    icon: Calendar,
+    href: "#",
   },
   { id: "contacts", label: "Contacts", icon: Users, href: "/contacts" },
   {
@@ -45,6 +51,7 @@ const navigationItems = [
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [isChatModalOpen, setIsChatModalOpen] = useState(false); // Added chat modal state
   const [isVoiceChatOpen, setIsVoiceChatOpen] = useState(false); // Added voice chat modal state
   const [selectedConversation, setSelectedConversation] = useState<any>(null); // Added state for conversation thread modal
@@ -57,26 +64,6 @@ export function AppSidebar() {
   >("create");
 
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [theme, setTheme] = useState<"light" | "dark">("light");
-
-  const handleThemeChange = () => {
-    const newTheme = theme === "light" ? "dark" : "light";
-    setTheme(newTheme);
-
-    if (newTheme === "dark") {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-  };
-
-  const getThemeIcon = () => {
-    return theme === "light" ? (
-      <Moon className="h-4 w-4" />
-    ) : (
-      <Sun className="h-4 w-4" />
-    );
-  };
 
   return (
     <aside
@@ -90,12 +77,6 @@ export function AppSidebar() {
           {!isSidebarCollapsed && (
             <div className="flex items-center space-x-2">
               <h1 className="text-lg font-bold">Stratos AI</h1>
-              <Badge
-                variant="secondary"
-                className="bg-accent text-accent-foreground text-xs"
-              >
-                Connected
-              </Badge>
             </div>
           )}
           <Button
@@ -114,7 +95,7 @@ export function AppSidebar() {
       </div>
 
       {/* Navigation Items */}
-      <nav className="flex-1 p-2">
+      <nav className="flex-1 p-2 flex flex-col justify-between">
         <div
           className={`${
             isSidebarCollapsed
@@ -151,7 +132,7 @@ export function AppSidebar() {
         </div>
         {/* Stratos AI webinar cross-sell promotional box */}
         {!isSidebarCollapsed && (
-          <div className="p-3 mb-2">
+          <div className="p-2 pb-0">
             <div className="bg-gradient-to-br from-primary/10 to-accent/10 border border-primary/20 rounded-lg p-4 space-y-3">
               <div className="flex items-center space-x-2">
                 <Bot className="h-5 w-5 text-primary" />
@@ -163,7 +144,11 @@ export function AppSidebar() {
                 Join our exclusive webinar: "10x Your Sales with AI Automation"
                 - Learn advanced strategies to boost conversions.
               </p>
-              <Button size="sm" className="w-full text-xs h-8">
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full text-xs h-8"
+              >
                 Register Free
               </Button>
             </div>
@@ -194,12 +179,12 @@ export function AppSidebar() {
           className={`${
             isSidebarCollapsed
               ? "h-10 w-10 p-0 justify-center mx-auto rounded-full"
-              : "w-full justify-start px-3 h-12 rounded-lg text-center"
+              : "w-full justify-center px-3 h-12 rounded-lg"
           } bg-primary hover:bg-primary/90 text-white shadow-lg transition-all duration-200 hover:shadow-xl`}
         >
           <Bot
             className={`h-5 w-5 ${
-              isSidebarCollapsed ? "" : "mr-2"
+              isSidebarCollapsed ? "" : "mr-0"
             } flex-shrink-0`}
           />
           {!isSidebarCollapsed && (
@@ -220,12 +205,13 @@ export function AppSidebar() {
       <div className="p-2 border-t space-y-1">
         {/* Settings Button */}
         <Button
+          onClick={() => router.push("/settings")}
           size="sm"
           variant="ghost"
           className={`${
             isSidebarCollapsed
               ? "h-12 w-12 p-0 justify-center mx-auto"
-              : "w-full justify-start px-3"
+              : "w-full justify-start px-3 justify-center"
           }`}
         >
           <Settings
@@ -233,22 +219,7 @@ export function AppSidebar() {
               isSidebarCollapsed ? "" : "mr-2"
             } flex-shrink-0`}
           />
-          {!isSidebarCollapsed && <span>Settings</span>}
-        </Button>
-
-        {/* Theme Toggle */}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleThemeChange}
-          className={`${
-            isSidebarCollapsed
-              ? "h-12 w-12 p-0 justify-center mx-auto"
-              : "w-full justify-start px-3"
-          }`}
-        >
-          {getThemeIcon()}
-          {!isSidebarCollapsed && <span className="ml-2">Toggle Theme</span>}
+          {!isSidebarCollapsed && "Manage Settings"}
         </Button>
       </div>
       <VoiceChatModal

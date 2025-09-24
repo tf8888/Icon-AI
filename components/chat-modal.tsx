@@ -24,13 +24,13 @@ export function ChatModal({ isOpen, onClose, onSwitchToVoice }: ChatModalProps) 
           </div>
           <div className="flex items-center space-x-2">
             <Button
-              variant="outline"
-              size="sm"
+              variant="ghost"
+              size="icon"
               onClick={onSwitchToVoice}
-              className="flex items-center space-x-2"
+              className="h-8 w-8"
+              title="Switch to Voice Mode"
             >
               <Mic className="h-4 w-4" />
-              <span>Switch to Voice</span>
             </Button>
             <Button
               variant="ghost"

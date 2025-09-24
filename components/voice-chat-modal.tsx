@@ -125,18 +125,26 @@ export function VoiceChatModal({ isOpen, onClose }: VoiceChatModalProps) {
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center">
-      <div className="w-full h-full flex flex-col">
+    <div className={`fixed inset-0 bg-gradient-to-br from-primary/50 to-accent/10 backdrop-blur-lg z-50 flex items-start justify-center transition-all duration-300 ${
+      isOpen ? "opacity-100 visible" : "opacity-0 invisible"
+    }`}>
+      <div
+        className={`w-full h-full flex flex-col transform transition-all duration-300 ease-out ${
+          isOpen ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0"
+        }`}
+      >
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-white/10">
           <div className="flex items-center space-x-4">
             <h2 className="text-2xl font-bold text-white">Voice Chat</h2>
             <Badge
               variant={isConnected ? "default" : "secondary"}
-              className="bg-green-500/20 text-green-400 border-green-500/30"
+              className={
+                isConnected
+                  ? "bg-primary/20 text-primary border-primary/30"
+                  : ""
+              }
             >
               {isConnected ? "Connected" : "Disconnected"}
             </Badge>
@@ -164,7 +172,7 @@ export function VoiceChatModal({ isOpen, onClose }: VoiceChatModalProps) {
                 <div
                   className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
                     message.role === "user"
-                      ? "bg-blue-600 text-white"
+                      ? "bg-primary text-primary-foreground"
                       : "bg-white/10 text-white border border-white/20"
                   }`}
                 >
@@ -177,7 +185,7 @@ export function VoiceChatModal({ isOpen, onClose }: VoiceChatModalProps) {
             {/* Live transcript */}
             {transcript && (
               <div className="flex justify-end">
-                <div className="max-w-xs lg:max-w-md px-4 py-2 rounded-lg bg-blue-600/50 text-white border border-blue-500/30">
+                <div className="max-w-xs lg:max-w-md px-4 py-2 rounded-lg bg-primary/50 text-primary-foreground border border-primary/30">
                   <p className="text-sm opacity-80">{transcript}</p>
                   <p className="text-xs opacity-50">Speaking...</p>
                 </div>
@@ -196,7 +204,7 @@ export function VoiceChatModal({ isOpen, onClose }: VoiceChatModalProps) {
               className={`h-16 w-16 rounded-full ${
                 isConnected
                   ? "bg-red-600 hover:bg-red-700 text-white"
-                  : "bg-green-600 hover:bg-green-700 text-white"
+                  : "bg-primary hover:bg-primary/90 text-primary-foreground"
               }`}
             >
               {isConnected ? (
@@ -214,7 +222,7 @@ export function VoiceChatModal({ isOpen, onClose }: VoiceChatModalProps) {
                 variant={isListening ? "default" : "outline"}
                 className={`h-16 w-16 rounded-full ${
                   isListening
-                    ? "bg-blue-600 hover:bg-blue-700 text-white animate-pulse"
+                    ? "bg-primary hover:bg-primary/90 text-primary-foreground animate-pulse"
                     : "border-white/30 text-white hover:bg-white/10"
                 }`}
               >

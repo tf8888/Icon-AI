@@ -9,13 +9,18 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
+  Bot,
   Calendar,
   CircleDollarSignIcon,
   Magnet,
+  MagnetIcon,
   Mail,
+  Paperclip,
   PenTool,
   Phone,
   Sprout,
+  StarIcon,
+  StarOffIcon,
   TrendingUp,
   UserPlus,
   Users,
@@ -100,61 +105,18 @@ export default function ActivityPage() {
         </div>
       </div>
       <div className="p-6 border-b">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">
-                    Total Contacts
-                  </p>
-                  <p className="text-2xl font-bold">
-                    {stats.totalContacts.toLocaleString()}
-                  </p>
-                </div>
-                <Users className="h-8 w-8 text-primary" />
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                {/* todo */}
+                <p className="text-sm text-muted-foreground">Todo</p>
+                <p className="text-2xl font-bold">Action Panel</p>
               </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">New Leads</p>
-                  <p className="text-2xl font-bold">{stats.newLeads}</p>
-                </div>
-                <UserPlus className="h-8 w-8 text-accent" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">
-                    Conversion Rate
-                  </p>
-                  <p className="text-2xl font-bold">{stats.conversionRate}%</p>
-                </div>
-                <TrendingUp className="h-8 w-8 text-chart-3" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Active Deals</p>
-                  <p className="text-2xl font-bold">{stats.activeDeals}</p>
-                </div>
-                <Calendar className="h-8 w-8 text-chart-4" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+              <Bot className="h-8 w-8 text-chart-3" />
+            </div>
+          </CardContent>
+        </Card>
       </div>
       <div className="flex-1 p-6 overflow-auto">
         <Card>
