@@ -46,7 +46,6 @@ const navigationItems = [
     icon: CircleDollarSignIcon,
     href: "/opportunities",
   },
-  { id: "settings", label: "Settings", icon: Settings, href: "/settings" },
 ];
 
 export function AppSidebar() {
