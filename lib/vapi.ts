@@ -1,5 +1,5 @@
 const VAPI_BASE_URL = "https://api.vapi.ai";
-const VAPI_PUBLIC_KEY = process.env.VAPI_PUBLIC_KEY;
+const VAPI_PUBLIC_KEY = process.env.VAPI_API_KEY;
 
 if (!VAPI_PUBLIC_KEY) {
   throw new Error("VAPI_PUBLIC_KEY is not set in environment variables");

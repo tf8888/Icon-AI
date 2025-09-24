@@ -20,6 +20,7 @@ export default function SettingsPage() {
     const [loadingProfile, setLoadingProfile] = useState(true)
     const [testResponse, setTestResponse] = useState<string | null>(null)
     const [isSaving, setIsSaving] = useState(false)
+    const [isCheckupCallsSaving, setIsCheckupCallsSaving] = useState(false);
 
     const [checkupCalls, setCheckupCalls] = useState({
         enabled: false,
@@ -34,10 +35,28 @@ export default function SettingsPage() {
     const [loadingPhoneNumber, setLoadingPhoneNumber] = useState(false);
     const [phoneNumberError, setPhoneNumberError] = useState<string | null>(null);
 
-    const handleSaveCheckupSettings = () => {
-        // In a real app, this would save to backend
-        console.log("Checkup call settings saved:", checkupCalls)
+    const handleSaveCheckupSettings = async () => {
+        setIsCheckupCallsSaving(true);
+
+        const userId = user?.id
+        if (!userId) {
+            console.error('No authenticated user found; unable to save to profile')
+            setIsSaving(false)
+            return
+        }
         // Show success message or update UI
+        try {
+            const { error } = await supabase.from('profile').update({ "checkupCalls": checkupCalls }).eq("user_id", user?.id)
+
+            if (error) {
+                console.error('Failed to save GHL settings to profile:', error)
+            }
+        } catch (error) {
+            console.error('Failed to save GHL settings', error)
+
+        } finally {
+            setIsCheckupCallsSaving(false);
+        }
     }
 
     const handleSavePitAndLocation = async () => {
@@ -55,10 +74,7 @@ export default function SettingsPage() {
                 ghl_location_id: locationId || null,
             }
 
-            console.log(">>>>", payload, userId);
-
             const { error } = await supabase.from('profile').update(payload).eq("user_id", userId)
-
 
             if (error) {
                 console.error('Failed to save GHL settings to profile:', error)
@@ -111,7 +127,7 @@ export default function SettingsPage() {
 
                 const { data, error } = await supabase
                     .from('profile')
-                    .select('ghl_pit_token,ghl_location_id')
+                    .select('ghl_pit_token,ghl_location_id, checkupCalls')
                     .eq('user_id', userId)
                     .single()
 
@@ -125,6 +141,13 @@ export default function SettingsPage() {
                     setOriginalLocationId(data.ghl_location_id ?? null)
                     setPitToken(data.ghl_pit_token ?? "")
                     setLocationId(data.ghl_location_id ?? "")
+                    setCheckupCalls(data.checkupCalls ?? {
+                        enabled: false,
+                        morningTime: "09:00",
+                        eveningTime: "17:00",
+                        enableMorning: true,
+                        enableEvening: false,
+                    })
                 }
             } catch (err) {
                 console.error('Failed to load profile', err)
@@ -163,21 +186,6 @@ export default function SettingsPage() {
             ...prev,
             [field]: value,
         }))
-
-        try {
-            const res = await fetch('https://agentoagents.app.n8n.cloud/webhook-test/8dc332bb-97a1-4e0e-8b37-3c8f82c939e4', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(checkupCalls),
-            })
-
-            const data = await res.json()
-            console.log("::::", data);
-
-            // setTestResponse(JSON.stringify(data, null, 2))
-        } catch (err: any) {
-            // setTestResponse(String(err?.message || err))
-        }
     }
 
     // Handler to create a new phone number for the user
@@ -429,12 +437,11 @@ export default function SettingsPage() {
                                         <li>• Strategic planning and goal tracking</li>
                                     </ul>
                                 </div>
-
-                                <Button onClick={handleSaveCheckupSettings} className="w-full">
-                                    Save Checkup Call Settings
-                                </Button>
                             </div>
                         )}
+                        <Button onClick={handleSaveCheckupSettings} className="w-full" disabled={isCheckupCallsSaving}>
+                            {isCheckupCallsSaving ? "Saving..." : "Save Checkup Call Settings"}
+                        </Button>
                     </CardContent>
                 </Card>
             </div>
