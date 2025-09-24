@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { VapiClient } from "@vapi-ai/server-sdk";
+import supabase from "@/lib/supabaseClient";
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));
@@ -14,8 +15,72 @@ export async function POST(req: Request) {
 
   const client = new VapiClient({ token });
 
-  // TODO: these will be hashed in production passed in the body as accessId
-  const bearer = process.env.GHL_PIT;
+  // Get user credentials from the request body or database
+  let bearer = body.ghl_pit_token;
+  let locationId = body.ghl_location_id || body.locationId;
+  let phoneNumberId = body.vapi_phone_number_id;
+  let customerNumber = body.vapi_phone_number;
+
+  // If user_id is provided but no credentials, fetch from database
+  if (body.user_id && (!bearer || !locationId || !phoneNumberId)) {
+    try {
+      const { data: profile, error } = await supabase
+        .from("profile")
+        .select(
+          "ghl_pit_token, ghl_location_id, vapi_phone_number_id, vapi_phone_number"
+        )
+        .eq("user_id", body.user_id)
+        .single();
+
+      if (error) {
+        return NextResponse.json(
+          { error: "Failed to fetch user profile: " + error.message },
+          { status: 400 }
+        );
+      }
+
+      if (!profile) {
+        return NextResponse.json(
+          { error: "User profile not found" },
+          { status: 404 }
+        );
+      }
+
+      bearer = bearer || profile.ghl_pit_token;
+      locationId = locationId || profile.ghl_location_id;
+      phoneNumberId = phoneNumberId || profile.vapi_phone_number_id;
+      customerNumber = customerNumber || profile.vapi_phone_number;
+    } catch (error) {
+      return NextResponse.json(
+        {
+          error:
+            "Database error: " +
+            (error instanceof Error ? error.message : String(error)),
+        },
+        { status: 500 }
+      );
+    }
+  }
+
+  // Fallback to environment variables if still not available
+  bearer = bearer || process.env.GHL_PIT;
+  phoneNumberId = phoneNumberId || process.env.VAPI_PHONE_NUMBER_ID;
+  customerNumber = customerNumber || process.env.CUSTOMER_PHONE_NUMBER;
+
+  if (!bearer) {
+    return NextResponse.json(
+      { error: "GHL PIT token not found in request or environment" },
+      { status: 400 }
+    );
+  }
+
+  if (!phoneNumberId) {
+    return NextResponse.json(
+      { error: "VAPI phone number ID not found in request or environment" },
+      { status: 400 }
+    );
+  }
+
   const serverUrl = "https://services.leadconnectorhq.com/mcp/";
 
   try {
@@ -35,8 +100,11 @@ export async function POST(req: Request) {
     const tool = await client.tools.create(toolPayload);
     console.log("tool created: ", tool);
 
-    const instructions: string | undefined =
-      "Your job is to provide the user with a summary of their business and help them with their GoHighLevel tasks. Their location id is DEpaQZQPhVVktU4FZci7 use this for all tool calls.";
+    const instructions:
+      | string
+      | undefined = `Your job is to provide the user with a summary of their business and help them with their GoHighLevel tasks. Their location id is ${locationId} use this for all tool calls. This is a ${
+      body.callType || "checkup"
+    } call to update them on their business progress.`;
     const messagesFromBody = Array.isArray(body?.model?.messages)
       ? body.model.messages
       : [];
@@ -58,7 +126,7 @@ export async function POST(req: Request) {
       model: {
         ...body.model,
         provider: "openai",
-        model: "gpt-5",
+        model: "gpt-4", // Changed from gpt-5 to gpt-4 as it's more commonly available
         toolIds: [tool.id],
         messages: mergedMessages,
       },
@@ -68,10 +136,18 @@ export async function POST(req: Request) {
     const assistant = await client.assistants.create(assistantPayload);
     console.log("assistant created: ", assistant);
 
+    // Extract phone number from SIP URI if needed
+    let callToNumber = customerNumber;
+    if (customerNumber && customerNumber.startsWith("sip:")) {
+      // For SIP URIs, we might need to handle differently or use a different number
+      // For now, we'll use the environment variable as fallback
+      callToNumber = process.env.CUSTOMER_PHONE_NUMBER;
+    }
+
     const call = await client.calls.create({
       assistantId: assistant.id,
-      phoneNumberId: "b7525c7c-eed5-4da9-8cf4-3b89d0cabcc5",
-      customer: { number: process.env.CUSTOMER_PHONE_NUMBER },
+      phoneNumberId: phoneNumberId,
+      customer: { number: callToNumber },
     });
     console.log("call created: ", call);
 
