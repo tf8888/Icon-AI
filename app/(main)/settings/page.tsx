@@ -103,7 +103,7 @@ export default function SettingsPage() {
             if (!user?.id) return;
             const { data } = await supabase
                 .from("profile")
-                .select("vapi_phone_number")
+                .select("vapi_phone_number, vapi_phone_number_id")
                 .eq("user_id", user.id)
                 .single();
             if (data && data.vapi_phone_number) {
@@ -201,11 +201,13 @@ export default function SettingsPage() {
             });
             const result = await res.json();
             const newNumber = result?.phoneNumber;
+            const newNumberId = result?.phoneNumberId;
+
             if (newNumber) {
 
                 setVapiPhoneNumber(newNumber);
                 // Save to DB
-                await supabase.from("profile").update({ vapi_phone_number: newNumber }).eq("user_id", user.id);
+                await supabase.from("profile").update({ vapi_phone_number: newNumber, vapi_phone_number_id: newNumberId }).eq("user_id", user.id);
             } else {
                 setPhoneNumberError("Failed to create phone number");
             }
