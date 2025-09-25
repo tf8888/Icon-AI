@@ -27,7 +27,7 @@ export async function POST(req: Request) {
       const { data: profile, error } = await supabase
         .from("profile")
         .select(
-          "ghl_pit_token, ghl_location_id, vapi_phone_number_id, vapi_phone_number"
+          "ghl_pit_token, ghl_location_id, vapi_phone_number_id, vapi_phone_number, phone_number"
         )
         .eq("user_id", body.user_id)
         .single();
@@ -49,7 +49,7 @@ export async function POST(req: Request) {
       bearer = bearer || profile.ghl_pit_token;
       locationId = locationId || profile.ghl_location_id;
       phoneNumberId = phoneNumberId || profile.vapi_phone_number_id;
-      customerNumber = customerNumber || profile.vapi_phone_number;
+      customerNumber = customerNumber || profile.phone_number;
     } catch (error) {
       return NextResponse.json(
         {

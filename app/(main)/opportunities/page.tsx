@@ -56,9 +56,66 @@ export default function OpportunitiesPage() {
     const [isOpportunityModalOpen, setIsOpportunityModalOpen] = useState(false)
     const [selectedOpportunity, setSelectedOpportunity] = useState<any>(null)
     const [opportunityModalMode, setOpportunityModalMode] = useState<"create" | "edit">("create")
+    const [currentPage, setCurrentPage] = useState(1)
+    const itemsPerPage = 5
 
     const { profile } = useProfile()
     const { toast } = useToast()
+
+    // Pagination calculations
+    const totalPages = Math.ceil(opportunities.length / itemsPerPage)
+    const startIndex = (currentPage - 1) * itemsPerPage
+    const endIndex = startIndex + itemsPerPage
+    const currentOpportunities = opportunities.slice(startIndex, endIndex)
+
+    // Pagination component
+    const PaginationComponent = () => {
+        const pageNumbers = []
+        for (let i = 1; i <= totalPages; i++) {
+            pageNumbers.push(i)
+        }
+
+        return (
+            <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200">
+                <div className="flex items-center text-sm text-gray-700">
+                    <span>
+                        Showing {startIndex + 1} to {Math.min(endIndex, opportunities.length)} of {opportunities.length} opportunities
+                    </span>
+                </div>
+                <div className="flex items-center space-x-2">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                        disabled={currentPage === 1}
+                    >
+                        Previous
+                    </Button>
+
+                    {pageNumbers.map((pageNum) => (
+                        <Button
+                            key={pageNum}
+                            variant={currentPage === pageNum ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setCurrentPage(pageNum)}
+                            className="w-8 h-8 p-0"
+                        >
+                            {pageNum}
+                        </Button>
+                    ))}
+
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                        disabled={currentPage === totalPages}
+                    >
+                        Next
+                    </Button>
+                </div>
+            </div>
+        )
+    }
 
     const fetchOpportunities = async () => {
         if (!profile?.ghl_pit_token || !profile?.ghl_location_id) {
@@ -86,6 +143,7 @@ export default function OpportunitiesPage() {
 
             const data: OpportunitiesResponse = await response.json()
             setOpportunities(data.opportunities || [])
+            setCurrentPage(1) // Reset to first page when fetching new data
         } catch (error) {
             console.error("Error fetching opportunities:", error)
             toast({
@@ -128,6 +186,13 @@ export default function OpportunitiesPage() {
             window.removeEventListener('opportunityUpdated', handleOpportunityUpdate)
         }
     }, [])
+
+    // Reset to valid page if current page exceeds total pages
+    useEffect(() => {
+        if (opportunities.length > 0 && totalPages > 0 && currentPage > totalPages) {
+            setCurrentPage(totalPages)
+        }
+    }, [opportunities.length, totalPages, currentPage])
 
     const getOpportunityStageColor = (stage: string) => {
         const lowerStage = stage?.toLowerCase() || ""
@@ -321,7 +386,7 @@ export default function OpportunitiesPage() {
                             </div>
                         ) : (
                             <div className="space-y-4">
-                                {opportunities.map((opportunity) => (
+                                {currentOpportunities.map((opportunity) => (
                                     <div
                                         key={opportunity.id}
                                         className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
@@ -369,6 +434,9 @@ export default function OpportunitiesPage() {
                                 ))}
                             </div>
                         )}
+
+                        {/* Always show pagination */}
+                        {opportunities.length > 0 && <PaginationComponent />}
                     </CardContent>
                 </Card>
             </div>
