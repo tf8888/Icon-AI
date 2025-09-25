@@ -27,7 +27,9 @@ export default function SettingsPage() {
   const [originalLocationId, setOriginalLocationId] = useState<string | null>(
     null
   );
+  const [originalPhoneNumber, setOriginalPhoneNumber] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [isPhoneEditing, setIsPhoneEditing] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [testResponse, setTestResponse] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -41,6 +43,8 @@ export default function SettingsPage() {
     enableEvening: false,
   });
 
+  const [phoneNumber, setPhoneNumber] = useState<string>("");
+  const [email, setEmail] = useState<string>("");
   // VAPI phone number state
   const [vapiPhoneNumber, setVapiPhoneNumber] = useState<string>("");
   const [loadingPhoneNumber, setLoadingPhoneNumber] = useState(false);
@@ -94,6 +98,7 @@ export default function SettingsPage() {
         ghl_pit_token: pitToken || null,
         ghl_location_id: locationId || null,
         phone_number: data.location.phone,
+        email: data.location.email
       };
 
       const { error } = await supabase
@@ -122,19 +127,56 @@ export default function SettingsPage() {
     setIsEditing(false);
   };
 
+  const handleCancelPhoneEdit = () => {
+    setPhoneNumber(originalPhoneNumber ?? "");
+    setIsPhoneEditing(false);
+  };
+
+  const handleSavePhoneNumber = async () => {
+    setIsSaving(true);
+    try {
+      const userId = user?.id;
+      if (!userId) {
+        console.error("No authenticated user found; unable to save to profile");
+        setIsSaving(false);
+        return;
+      }
+
+      const { error } = await supabase
+        .from("profile")
+        .update({ phone_number: phoneNumber || null })
+        .eq("user_id", userId);
+
+      if (error) {
+        console.error("Failed to save phone number to profile:", error);
+      } else {
+        console.log("Saved phone number to profile table");
+        setOriginalPhoneNumber(phoneNumber || null);
+        setIsPhoneEditing(false);
+      }
+    } catch (err) {
+      console.error("Failed to save phone number", err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   // Load phone number from profile on mount
   useEffect(() => {
     const loadPhoneNumber = async () => {
       if (!user?.id) return;
       const { data } = await supabase
         .from("profile")
-        .select("vapi_phone_number, vapi_phone_number_id")
+        .select("vapi_phone_number, vapi_phone_number_id, email")
         .eq("user_id", user.id)
         .single();
-      if (data && data.vapi_phone_number) {
-        setVapiPhoneNumber(data.vapi_phone_number);
-      } else {
-        setVapiPhoneNumber("");
+      if (data) {
+        setEmail(data.email);
+        if (data.vapi_phone_number) {
+          setVapiPhoneNumber(data.vapi_phone_number);
+        } else {
+          setVapiPhoneNumber("");
+        }
       }
     };
     loadPhoneNumber();
@@ -152,7 +194,7 @@ export default function SettingsPage() {
 
         const { data, error } = await supabase
           .from("profile")
-          .select("ghl_pit_token,ghl_location_id, checkupCalls")
+          .select("ghl_pit_token,ghl_location_id, checkupCalls, phone_number")
           .eq("user_id", userId)
           .single();
 
@@ -167,8 +209,10 @@ export default function SettingsPage() {
         if (data) {
           setOriginalPitToken(data.ghl_pit_token ?? null);
           setOriginalLocationId(data.ghl_location_id ?? null);
+          setOriginalPhoneNumber(data.phone_number ?? null);
           setPitToken(data.ghl_pit_token ?? "");
           setLocationId(data.ghl_location_id ?? "");
+          setPhoneNumber(data.phone_number ?? "");
           setCheckupCalls(
             data.checkupCalls ?? {
               enabled: false,
@@ -414,12 +458,58 @@ export default function SettingsPage() {
                 <p className="text-xs text-red-500">{phoneNumberError}</p>
               )}
               <div>
-                <span className="text-sm">Outbound Phone Number</span>
-                <Input
-                  value={"outboundPhoneNumber"}
-                  onChange={(e) => {}}
-                  placeholder="Enter outbound phone number"
-                />
+                <span className="text-sm font-medium">Outbound Phone Number</span>
+                {!isPhoneEditing && originalPhoneNumber ? (
+                  <div className="flex items-center justify-between border rounded px-3 py-2 mt-1">
+                    <span className="text-sm">{originalPhoneNumber}</span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setIsPhoneEditing(true)}
+                    >
+                      Edit
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="mt-1">
+                    <Input
+                      value={phoneNumber}
+                      onChange={(e) => setPhoneNumber(e.target.value)}
+                      placeholder="Enter outbound phone number"
+                    />
+                    <div className="flex space-x-2 mt-2">
+                      <Button
+                        onClick={handleSavePhoneNumber}
+                        size="sm"
+                        disabled={isSaving}
+                      >
+                        {isSaving ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="h-4 w-4 mr-1" />
+                            Save
+                          </>
+                        )}
+                      </Button>
+                      {isPhoneEditing && (
+                        <Button
+                          variant="ghost"
+                          onClick={handleCancelPhoneEdit}
+                          size="sm"
+                        >
+                          Cancel
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground mt-1">
+                  Phone number used for outbound calls
+                </p>
               </div>
             </div>
           </CardContent>
@@ -433,7 +523,7 @@ export default function SettingsPage() {
               {/* send call button */}
               <Button
                 variant="outline"
-                onClick={() => {}}
+                onClick={() => { }}
                 disabled={!vapiPhoneNumber}
                 className="ml-auto"
               >
