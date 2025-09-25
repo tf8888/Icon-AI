@@ -1,9 +1,19 @@
 import { NextResponse } from "next/server";
 import { VapiClient } from "@vapi-ai/server-sdk";
-import supabase from "@/lib/supabaseClient";
+import { auth } from "@clerk/nextjs/server";
+import { createClient } from "@supabase/supabase-js";
+
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));
+
+  // Authenticate user with Clerk
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   const token = process.env.VAPI_API_KEY;
   if (!token) {
@@ -13,7 +23,15 @@ export async function POST(req: Request) {
     );
   }
 
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+    return NextResponse.json(
+      { error: "Supabase configuration missing" },
+      { status: 500 }
+    );
+  }
+
   const client = new VapiClient({ token });
+  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
   // Get user credentials from the request body or database
   let bearer = body.ghl_pit_token;
@@ -22,14 +40,15 @@ export async function POST(req: Request) {
   let customerNumber = body.vapi_phone_number;
 
   // If user_id is provided but no credentials, fetch from database
-  if (body.user_id && (!bearer || !locationId || !phoneNumberId)) {
+  // Use the authenticated userId from Clerk instead of trusting the request body
+  if (!bearer || !locationId || !phoneNumberId) {
     try {
       const { data: profile, error } = await supabase
         .from("profile")
         .select(
           "ghl_pit_token, ghl_location_id, vapi_phone_number_id, vapi_phone_number, phone_number"
         )
-        .eq("user_id", body.user_id)
+        .eq("user_id", userId) // Use authenticated userId from Clerk
         .single();
 
       if (error) {
@@ -146,13 +165,15 @@ export async function POST(req: Request) {
 
     const call = await client.calls.create({
       assistantId: assistant.id,
-      phoneNumberId: phoneNumberId,
+      phoneNumberId: process.env.VAPI_PHONE_NUMBER_ID,
       customer: { number: callToNumber },
     });
     console.log("call created: ", call);
 
     return NextResponse.json(assistant);
   } catch (err: any) {
+    console.error("Failed to create assistant: ", err);
+
     const status = err?.statusCode || 500;
     const message = err?.message || "Failed to create assistant";
     const details = err?.body || err?.response?.data || undefined;

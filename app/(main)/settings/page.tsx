@@ -49,6 +49,8 @@ export default function SettingsPage() {
   const [vapiPhoneNumber, setVapiPhoneNumber] = useState<string>("");
   const [loadingPhoneNumber, setLoadingPhoneNumber] = useState(false);
   const [phoneNumberError, setPhoneNumberError] = useState<string | null>(null);
+  const [isSendingCall, setIsSendingCall] = useState(false);
+  const [sendCallError, setSendCallError] = useState<string | null>(null);
 
   const handleSaveCheckupSettings = async () => {
     setIsCheckupCallsSaving(true);
@@ -297,6 +299,34 @@ export default function SettingsPage() {
     }
   };
 
+  // Handler to send checkup call
+  const handleSendCall = async () => {
+    if (!user?.id) return;
+    setIsSendingCall(true);
+    setSendCallError(null);
+    try {
+      const res = await fetch("/api/vapi/assistants/sendCheckupCall", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}), // Empty body - auth handled by Clerk on server side
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Failed to send call");
+      }
+
+      const result = await res.json();
+      console.log("Checkup call sent successfully:", result);
+      // You could add a success toast here if needed
+    } catch (err: any) {
+      setSendCallError(err?.message || "Failed to send call");
+      console.error("Error sending checkup call:", err);
+    } finally {
+      setIsSendingCall(false);
+    }
+  };
+
   return (
     <>
       <div className="flex-1 p-6 overflow-auto space-y-6">
@@ -523,11 +553,18 @@ export default function SettingsPage() {
               {/* send call button */}
               <Button
                 variant="outline"
-                onClick={() => { }}
-                disabled={!vapiPhoneNumber}
+                onClick={handleSendCall}
+                disabled={!vapiPhoneNumber || isSendingCall}
                 className="ml-auto"
               >
-                Send Call
+                {isSendingCall ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                    Sending...
+                  </>
+                ) : (
+                  "Send Call"
+                )}
               </Button>
             </CardTitle>
             <CardDescription>
@@ -536,6 +573,13 @@ export default function SettingsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
+            {/* Error display for send call */}
+            {sendCallError && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-sm text-red-600">{sendCallError}</p>
+              </div>
+            )}
+
             {/* Enable/Disable Toggle */}
             <div className="flex items-center justify-between p-4 border rounded-lg">
               <div>
