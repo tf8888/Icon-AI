@@ -3,31 +3,9 @@
 import React from "react";
 import { useUser, UserButton } from "@clerk/nextjs";
 import { Button } from "./ui/button";
-import { useState } from "react";
-import { Moon, Sun } from "lucide-react";
 
 export function Header() {
   const { isLoaded, user } = useUser();
-  const [theme, setTheme] = useState<"light" | "dark">("light");
-
-  const handleThemeChange = () => {
-    const newTheme = theme === "light" ? "dark" : "light";
-    setTheme(newTheme);
-
-    if (newTheme === "dark") {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-  };
-
-  const getThemeIcon = () => {
-    return theme === "light" ? (
-      <Moon className="h-4 w-4" />
-    ) : (
-      <Sun className="h-4 w-4" />
-    );
-  };
 
   if (!isLoaded) return null;
 
@@ -48,15 +26,6 @@ export function Header() {
         ) : (
           <div className="text-sm text-gray-600">Not signed in</div>
         )}
-        {/* Theme Toggle */}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleThemeChange}
-          className={`h-12 w-12 p-0 justify-center mx-auto`}
-        >
-          {getThemeIcon()}
-        </Button>
       </div>
     </header>
   );

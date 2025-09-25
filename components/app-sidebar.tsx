@@ -8,6 +8,8 @@ import {
   ChevronRight,
   Home,
   Calendar,
+  Moon,
+  Sun,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import Link from "next/link";
@@ -63,6 +65,26 @@ export function AppSidebar() {
   >("create");
 
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+
+  const handleThemeChange = () => {
+    const newTheme = theme === "light" ? "dark" : "light";
+    setTheme(newTheme);
+
+    if (newTheme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  };
+
+  const getThemeIcon = () => {
+    return theme === "light" ? (
+      <Moon className="h-4 w-4" />
+    ) : (
+      <Sun className="h-4 w-4" />
+    );
+  };
 
   return (
     <aside
@@ -196,6 +218,24 @@ export function AppSidebar() {
 
       {/* Bottom Section - Settings and Theme */}
       <div className="p-2 border-t space-y-1">
+        {/* Theme Toggle */}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleThemeChange}
+          className={`${isSidebarCollapsed
+              ? "h-12 w-12 p-0 justify-center mx-auto"
+              : "w-full px-3 justify-start"
+            }`}
+        >
+          {getThemeIcon()}
+          {!isSidebarCollapsed && (
+            <span className="ml-2">
+              {theme === "light" ? "Dark Mode" : "Light Mode"}
+            </span>
+          )}
+        </Button>
+        
         {/* Settings Button */}
         <Button
           onClick={() => router.push("/settings")}
@@ -203,7 +243,7 @@ export function AppSidebar() {
           variant="ghost"
           className={`${isSidebarCollapsed
               ? "h-12 w-12 p-0 justify-center mx-auto"
-              : "w-full  px-3 justify-center"
+              : "w-full  px-3 justify-start"
             }`}
         >
           <Settings
