@@ -72,9 +72,18 @@ export default function SettingsPage() {
                 return
             }
 
+            const res = await fetch('/api/test-mcp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pitToken, locationId }),
+            })
+
+            const data = await res.json()
+
             const payload = {
                 ghl_pit_token: pitToken || null,
                 ghl_location_id: locationId || null,
+                phone_number: data.location.phone
             }
 
             const { error } = await supabase.from('profile').update(payload).eq("user_id", userId)
