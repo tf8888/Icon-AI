@@ -5,60 +5,225 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Users, TrendingUp, UserPlus, Mail, Phone, Search } from "lucide-react";
-import { useState } from "react";
-
-const recentContacts = [
-    {
-        id: 1,
-        name: "Sarah Johnson",
-        email: "sarah@example.com",
-        phone: "(555) 123-4567",
-        status: "hot",
-        avatar: "/placeholder.svg?height=32&width=32",
-    },
-    {
-        id: 2,
-        name: "Mike Chen",
-        email: "mike@example.com",
-        phone: "(555) 234-5678",
-        status: "warm",
-        avatar: "/placeholder.svg?height=32&width=32",
-    },
-    {
-        id: 3,
-        name: "Emily Davis",
-        email: "emily@example.com",
-        phone: "(555) 345-6789",
-        status: "cold",
-        avatar: "/placeholder.svg?height=32&width=32",
-    },
-    {
-        id: 4,
-        name: "Alex Rodriguez",
-        email: "alex@example.com",
-        phone: "(555) 456-7890",
-        status: "hot",
-        avatar: "/placeholder.svg?height=32&width=32",
-    },
-]
-
-const getStatusColor = (status: string) => {
-    switch (status) {
-        case "hot":
-            return "bg-red-100 text-red-800"
-        case "warm":
-            return "bg-yellow-100 text-yellow-800"
-        case "cold":
-            return "bg-blue-100 text-blue-800"
-        default:
-            return "bg-gray-100 text-gray-800"
-    }
-}
+import { Users, TrendingUp, UserPlus, Mail, Phone, Search, Edit, Trash2, Loader2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useProfile } from "@/lib/contexts/ProfileContext";
+import { useGHLContactsService, GHLContact, GHLCreateContactData } from "@/lib/services/ghlContactsService";
+import { ContactModal } from "@/components/contact-modal";
+import { DeleteContactDialog } from "@/components/delete-contact-dialog";
+import { useToast } from "@/hooks/use-toast";
 
 export default function ContactsPage() {
+    const { profile, loading: profileLoading } = useProfile();
+    const ghlService = useGHLContactsService(profile?.ghl_pit_token, profile?.ghl_location_id);
+    const { toast } = useToast();
 
-    const [searchTerm, setSearchTerm] = useState("")
+    const [contacts, setContacts] = useState<GHLContact[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [searchTerm, setSearchTerm] = useState("");
+    const [contactModalOpen, setContactModalOpen] = useState(false);
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [selectedContact, setSelectedContact] = useState<GHLContact | null>(null);
+    const [actionLoading, setActionLoading] = useState(false);
+
+    // Fetch contacts from GHL
+    const fetchContacts = async () => {
+        if (!ghlService) return;
+
+        setLoading(true);
+        try {
+            const response = await ghlService.getContacts({ limit: 100 });
+            setContacts(response.contacts || []);
+        } catch (error: any) {
+            console.error('Error fetching contacts:', error);
+            toast({
+                title: "Error",
+                description: "Failed to fetch contacts from GoHighLevel",
+                variant: "destructive"
+            });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Search contacts
+    const searchContacts = async (query: string) => {
+        if (!ghlService || !query.trim()) {
+            fetchContacts();
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const response = await ghlService.searchContacts(query, 100);
+            setContacts(response.contacts || []);
+        } catch (error: any) {
+            console.error('Error searching contacts:', error);
+            toast({
+                title: "Error",
+                description: "Failed to search contacts",
+                variant: "destructive"
+            });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Handle contact creation
+    const handleCreateContact = async (contactData: GHLCreateContactData) => {
+        if (!ghlService) return;
+
+        setActionLoading(true);
+        try {
+            await ghlService.createContact(contactData);
+            toast({
+                title: "Success",
+                description: "Contact created successfully"
+            });
+            setTimeout(() => {
+                fetchContacts()
+            }, 5000)
+        } catch (error: any) {
+            console.error('Error creating contact:', error);
+            toast({
+                title: "Error",
+                description: error.message || "Failed to create contact",
+                variant: "destructive"
+            });
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    // Handle contact update
+    const handleUpdateContact = async (contactData: GHLCreateContactData) => {
+        if (!ghlService || !selectedContact?.id) return;
+
+        setActionLoading(true);
+        try {
+            await ghlService.updateContact(selectedContact.id, {
+                ...contactData,
+                id: selectedContact.id
+            });
+            toast({
+                title: "Success",
+                description: "Contact updated successfully"
+            });
+            setTimeout(() => {
+                fetchContacts()
+            }, 3000)
+        } catch (error: any) {
+            console.error('Error updating contact:', error);
+            toast({
+                title: "Error",
+                description: error.message || "Failed to update contact",
+                variant: "destructive"
+            });
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    // Handle contact deletion
+    const handleDeleteContact = async () => {
+        if (!ghlService || !selectedContact?.id) return;
+
+        setActionLoading(true);
+        try {
+            await ghlService.deleteContact(selectedContact.id);
+            toast({
+                title: "Success",
+                description: "Contact deleted successfully"
+            });
+
+            setTimeout(() => {
+                fetchContacts()
+            }, 5000)
+        } catch (error: any) {
+            console.error('Error deleting contact:', error);
+            toast({
+                title: "Error",
+                description: error.message || "Failed to delete contact",
+                variant: "destructive"
+            });
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    // Effect to fetch contacts when GHL service is ready
+    useEffect(() => {
+        if (ghlService && !profileLoading) {
+            fetchContacts();
+        }
+    }, [ghlService, profileLoading]);
+
+    // Effect for search debouncing
+    useEffect(() => {
+        const timeoutId = setTimeout(() => {
+            if (searchTerm) {
+                searchContacts(searchTerm);
+            } else {
+                fetchContacts();
+            }
+        }, 500);
+
+        return () => clearTimeout(timeoutId);
+    }, [searchTerm]);
+
+    // Listen for contact updates
+    useEffect(() => {
+        const handleContactUpdate = () => {
+            // Add 3-second delay to allow GHL API to propagate changes
+            setTimeout(() => {
+                fetchContacts()
+            }, 3000)
+        }
+
+        window.addEventListener('contactUpdated', handleContactUpdate)
+
+        return () => {
+            window.removeEventListener('contactUpdated', handleContactUpdate)
+        }
+    }, [])
+
+    // Show loading state while profile is loading
+    if (profileLoading || (!profile?.ghl_pit_token && !profileLoading)) {
+        return (
+            <div className="flex items-center justify-center h-full">
+                <div className="text-center">
+                    {profileLoading ? (
+                        <>
+                            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+                            <p>Loading profile...</p>
+                        </>
+                    ) : (
+                        <>
+                            <Users className="h-8 w-8 mx-auto mb-4 text-muted-foreground" />
+                            <p className="text-muted-foreground">
+                                GoHighLevel integration not configured. Please set up your GHL tokens in settings.
+                            </p>
+                        </>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
+    const hotLeads = contacts.filter(contact =>
+        contact.tags?.some(tag => tag.toLowerCase().includes('hot')) ||
+        contact.source?.toLowerCase().includes('hot')
+    ).length;
+
+    const warmLeads = contacts.filter(contact =>
+        contact.tags?.some(tag => tag.toLowerCase().includes('warm')) ||
+        contact.source?.toLowerCase().includes('warm')
+    ).length;
+
+    const coldLeads = contacts.filter(contact =>
+        contact.tags?.some(tag => tag.toLowerCase().includes('cold')) ||
+        contact.source?.toLowerCase().includes('cold')
+    ).length;
 
     return (
         <>
@@ -69,7 +234,7 @@ export default function ContactsPage() {
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="text-sm text-muted-foreground">Total Contacts</p>
-                                    <p className="text-2xl font-bold">{recentContacts.length}</p>
+                                    <p className="text-2xl font-bold">{contacts.length}</p>
                                 </div>
                                 <Users className="h-8 w-8 text-primary" />
                             </div>
@@ -81,7 +246,7 @@ export default function ContactsPage() {
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="text-sm text-muted-foreground">Hot Leads</p>
-                                    <p className="text-2xl font-bold">{recentContacts.filter((c) => c.status === "hot").length}</p>
+                                    <p className="text-2xl font-bold">{hotLeads}</p>
                                 </div>
                                 <TrendingUp className="h-8 w-8 text-red-500" />
                             </div>
@@ -93,7 +258,7 @@ export default function ContactsPage() {
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="text-sm text-muted-foreground">Warm Leads</p>
-                                    <p className="text-2xl font-bold">{recentContacts.filter((c) => c.status === "warm").length}</p>
+                                    <p className="text-2xl font-bold">{warmLeads}</p>
                                 </div>
                                 <UserPlus className="h-8 w-8 text-yellow-500" />
                             </div>
@@ -105,7 +270,7 @@ export default function ContactsPage() {
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="text-sm text-muted-foreground">Cold Leads</p>
-                                    <p className="text-2xl font-bold">{recentContacts.filter((c) => c.status === "cold").length}</p>
+                                    <p className="text-2xl font-bold">{coldLeads}</p>
                                 </div>
                                 <Users className="h-8 w-8 text-blue-500" />
                             </div>
@@ -113,11 +278,12 @@ export default function ContactsPage() {
                     </Card>
                 </div>
             </div>
+
             <div className="flex-1 p-6 overflow-auto">
                 <Card>
                     <CardHeader>
                         <div className="flex items-center justify-between">
-                            <CardTitle> Contacts</CardTitle>
+                            <CardTitle>Contacts</CardTitle>
                             <div className="flex items-center space-x-2">
                                 <div className="relative">
                                     <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -128,7 +294,13 @@ export default function ContactsPage() {
                                         className="pl-8 w-64"
                                     />
                                 </div>
-                                <Button size="sm">
+                                <Button
+                                    size="sm"
+                                    onClick={() => {
+                                        setSelectedContact(null);
+                                        setContactModalOpen(true);
+                                    }}
+                                >
                                     <UserPlus className="h-4 w-4 mr-2" />
                                     Add Contact
                                 </Button>
@@ -136,45 +308,110 @@ export default function ContactsPage() {
                         </div>
                     </CardHeader>
                     <CardContent>
-                        <div className="space-y-4">
-                            {recentContacts.map((contact) => (
-                                <div
-                                    key={contact.id}
-                                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
-                                >
-                                    <div className="flex items-center space-x-4">
-                                        <Avatar>
-                                            <AvatarImage src={contact.avatar || "/placeholder.svg"} alt={contact.name} />
-                                            <AvatarFallback>
-                                                {contact.name
-                                                    .split(" ")
-                                                    .map((n) => n[0])
-                                                    .join("")}
-                                            </AvatarFallback>
-                                        </Avatar>
-                                        <div>
-                                            <p className="font-semibold">{contact.name}</p>
-                                            <p className="text-sm text-muted-foreground">{contact.email}</p>
-                                            <p className="text-sm text-muted-foreground">{contact.phone}</p>
+                        {loading ? (
+                            <div className="flex items-center justify-center py-8">
+                                <Loader2 className="h-8 w-8 animate-spin" />
+                                <span className="ml-2">Loading contacts...</span>
+                            </div>
+                        ) : contacts.length === 0 ? (
+                            <div className="text-center py-8">
+                                <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                                <p className="text-muted-foreground">
+                                    {searchTerm ? 'No contacts found matching your search.' : 'No contacts found. Create your first contact!'}
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                {contacts.map((contact) => (
+                                    <div
+                                        key={contact.id}
+                                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                                    >
+                                        <div className="flex items-center space-x-4">
+                                            <Avatar>
+                                                <AvatarFallback>
+                                                    {`${contact.firstName?.[0] || ''}${contact.lastName?.[0] || ''}`}
+                                                </AvatarFallback>
+                                            </Avatar>
+                                            <div>
+                                                <p className="font-semibold">
+                                                    {contact.firstName} {contact.lastName}
+                                                </p>
+                                                <p className="text-sm text-muted-foreground">{contact.email}</p>
+                                                <p className="text-sm text-muted-foreground">{contact.phone}</p>
+                                                {contact.companyName && (
+                                                    <p className="text-sm text-muted-foreground">{contact.companyName}</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center space-x-2">
+                                            {contact.tags && contact.tags.length > 0 && (
+                                                <div className="flex gap-1">
+                                                    {contact.tags.slice(0, 2).map((tag) => (
+                                                        <Badge key={tag} variant="secondary" className="text-xs">
+                                                            {tag}
+                                                        </Badge>
+                                                    ))}
+                                                </div>
+                                            )}
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => {
+                                                    setSelectedContact(contact);
+                                                    setContactModalOpen(true);
+                                                }}
+                                            >
+                                                <Edit className="h-4 w-4 mr-2" />
+                                                Edit
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => {
+                                                    setSelectedContact(contact);
+                                                    setDeleteDialogOpen(true);
+                                                }}
+                                            >
+                                                <Trash2 className="h-4 w-4 mr-2" />
+                                                Delete
+                                            </Button>
+                                            {/* {contact.phone && (
+                                                <Button variant="outline" size="sm">
+                                                    <Phone className="h-4 w-4 mr-2" />
+                                                    Call
+                                                </Button>
+                                            )}
+                                            {contact.email && (
+                                                <Button variant="outline" size="sm">
+                                                    <Mail className="h-4 w-4 mr-2" />
+                                                    Email
+                                                </Button>
+                                            )} */}
                                         </div>
                                     </div>
-                                    <div className="flex items-center space-x-2">
-                                        <Badge className={getStatusColor(contact.status)}>{contact.status}</Badge>
-                                        <Button variant="outline" size="sm">
-                                            <Phone className="h-4 w-4 mr-2" />
-                                            Call
-                                        </Button>
-                                        <Button variant="outline" size="sm">
-                                            <Mail className="h-4 w-4 mr-2" />
-                                            Email
-                                        </Button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
+                                ))}
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
             </div>
+
+            <ContactModal
+                open={contactModalOpen}
+                onOpenChange={setContactModalOpen}
+                onSubmit={selectedContact ? handleUpdateContact : handleCreateContact}
+                contact={selectedContact}
+                loading={actionLoading}
+            />
+
+            <DeleteContactDialog
+                open={deleteDialogOpen}
+                onOpenChange={setDeleteDialogOpen}
+                onConfirm={handleDeleteContact}
+                contact={selectedContact}
+                loading={actionLoading}
+            />
         </>
-    )
+    );
 }

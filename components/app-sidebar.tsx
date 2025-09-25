@@ -203,7 +203,7 @@ export function AppSidebar() {
           variant="ghost"
           className={`${isSidebarCollapsed
               ? "h-12 w-12 p-0 justify-center mx-auto"
-              : "w-full justify-start px-3 justify-center"
+              : "w-full  px-3 justify-center"
             }`}
         >
           <Settings

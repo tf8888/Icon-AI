@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -12,30 +12,14 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Phone, Mail, MoreVertical } from "lucide-react";
-
-interface Message {
-  id: number;
-  sender: "user" | "contact";
-  content: string;
-  timestamp: string;
-  type: "text" | "email" | "sms";
-}
-
-interface Conversation {
-  id: number;
-  contact: string;
-  lastMessage: string;
-  timestamp: string;
-  unread: number;
-  status: string;
-  avatar: string;
-}
+import { Send, Phone, Mail, MoreVertical, Loader2 } from "lucide-react";
+import { useProfile } from "@/lib/contexts/ProfileContext";
+import { useGHLConversationsService, GHLConversation, GHLMessage } from "@/lib/services/ghlConversationsService";
 
 interface ConversationThreadModalProps {
   isOpen: boolean;
   onClose: () => void;
-  conversation: Conversation | null;
+  conversation: GHLConversation | null;
 }
 
 export function ConversationThreadModal({
@@ -43,75 +27,193 @@ export function ConversationThreadModal({
   onClose,
   conversation,
 }: ConversationThreadModalProps) {
-  const [newMessage, setNewMessage] = useState("");
-  const [messageType, setMessageType] = useState<"text" | "email" | "sms">(
-    "text"
+  const { profile } = useProfile();
+  const conversationsService = useGHLConversationsService(
+    profile?.ghl_pit_token,
+    profile?.ghl_location_id
   );
 
-  // Mock conversation thread data
-  const messages: Message[] = [
-    {
-      id: 1,
-      sender: "contact",
-      content:
-        "Hi! I'm interested in your services. Can you tell me more about your pricing?",
-      timestamp: "2 days ago",
-      type: "email",
-    },
-    {
-      id: 2,
-      sender: "user",
-      content:
-        "Thanks for reaching out! I'd be happy to discuss our pricing. We have several packages available depending on your needs. Would you like to schedule a quick call?",
-      timestamp: "2 days ago",
-      type: "email",
-    },
-    {
-      id: 3,
-      sender: "contact",
-      content:
-        "That sounds great! I'm available tomorrow afternoon or Thursday morning.",
-      timestamp: "1 day ago",
-      type: "email",
-    },
-    {
-      id: 4,
-      sender: "user",
-      content:
-        "Perfect! Let's schedule for Thursday at 10 AM. I'll send you a calendar invite.",
-      timestamp: "1 day ago",
-      type: "email",
-    },
-    {
-      id: 5,
-      sender: "contact",
-      content: "Thanks for the follow-up! I'm interested in learning more.",
-      timestamp: "2 hours ago",
-      type: "sms",
-    },
-  ];
+  const [newMessage, setNewMessage] = useState("");
+  const [messageType, setMessageType] = useState<"SMS" | "Email">("SMS");
+  const [messages, setMessages] = useState<GHLMessage[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSendMessage = () => {
-    if (!newMessage.trim()) return;
+  // Fetch messages when conversation changes
+  useEffect(() => {
+    if (conversation?.id && conversationsService && isOpen) {
+      fetchMessages();
+    }
+  }, [conversation?.id, conversationsService, isOpen]);
 
-    // In a real app, this would send the message via API
-    console.log("[stratos] Sending message:", {
-      content: newMessage,
-      type: messageType,
-      to: conversation?.contact,
-    });
-    setNewMessage("");
+  const fetchMessages = async () => {
+    if (!conversation?.id || !conversationsService) return;
+
+    setLoading(true);
+    setError(null);
+    try {
+      const { messages: response } = await conversationsService.getConversationMessages(
+        conversation.id,
+        { limit: 50 }
+      );
+      console.log("GHL messages response:", response); // Debug log
+
+      // Extract messages from response and sort by dateUpdated (oldest first)
+      let messagesArray: GHLMessage[] = [];
+      if (response && Array.isArray(response?.messages)) {
+        messagesArray = response.messages.sort((a: GHLMessage, b: GHLMessage) => {
+          const dateA = new Date(a.dateUpdated || a.dateAdded || 0).getTime();
+          const dateB = new Date(b.dateUpdated || b.dateAdded || 0).getTime();
+          return dateA - dateB; // Oldest first
+        });
+      }
+
+      console.log("Sorted messages array:", messagesArray); // Debug log
+      setMessages(messagesArray);
+    } catch (err: any) {
+      setError(err.message);
+      console.error("Error fetching messages:", err);
+      setMessages([]); // Set empty array on error
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const getMessageTypeColor = (type: string) => {
-    switch (type) {
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !conversation?.contactId || !conversationsService) return;
+
+    // Validate email requirements
+    if (messageType === "Email") {
+      if (!conversation.contactEmail) {
+        setError("Cannot send email: Contact does not have an email address");
+        return;
+      }
+
+      // Basic email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(conversation.contactEmail)) {
+        setError("Cannot send email: Contact's email address is invalid");
+        return;
+      }
+    }
+
+    setSending(true);
+    setError(null);
+    try {
+      const messageData = {
+        type: messageType,
+        contactId: conversation.contactId!,
+        message: newMessage.trim(),
+        ...(messageType === "Email" && {
+          subject: `Re: Conversation with ${conversation.contactName || conversation.fullName || 'Contact'}`
+        })
+      };
+
+      // Send message using the global messages endpoint
+      await conversationsService.createMessage(messageData);
+      setNewMessage("");
+      // Refetch messages to show the new one
+      try {
+        await fetchMessages();
+      } catch (refreshErr) {
+        console.warn("Failed to refresh messages after sending:", refreshErr);
+      }
+    } catch (err: any) {
+      // Parse specific error messages
+      let errorMessage = err.message;
+      if (errorMessage.includes("contact's e-mail is invalid")) {
+        errorMessage = "Cannot send email: Contact's email address is invalid or missing";
+      } else if (errorMessage.includes("Unable to send e-mail")) {
+        errorMessage = "Failed to send email: Contact's email is invalid";
+      }
+
+      setError(errorMessage);
+      console.error("Error sending message:", err);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const getMessageTypeColor = (type: string | number) => {
+    // Handle numeric type values from GHL API
+    const typeStr = typeof type === 'number'
+      ? getMessageTypeString(type)
+      : (type?.toLowerCase() || 'unknown');
+
+    switch (typeStr) {
       case "email":
         return "bg-blue-100 text-blue-800";
       case "sms":
+      case "phone":
+        return "bg-green-100 text-green-800";
+      case "call":
+        return "bg-purple-100 text-purple-800";
+      case "facebook":
+      case "messenger":
+        return "bg-blue-100 text-blue-800";
+      case "review":
+        return "bg-yellow-100 text-yellow-800";
+      case "group sms":
+        return "bg-green-100 text-green-800";
+      case "internal chat":
+        return "bg-gray-100 text-gray-800";
+      case "whatsapp":
         return "bg-green-100 text-green-800";
       default:
         return "bg-gray-100 text-gray-800";
     }
+  };
+
+  const getMessageTypeString = (type: number): string => {
+    switch (type) {
+      case 1:
+        return "phone";
+      case 2:
+        return "email";
+      case 3:
+        return "facebook";
+      case 4:
+        return "review";
+      case 5:
+        return "group sms";
+      case 6:
+        return "internal chat";
+      default:
+        return "unknown";
+    }
+  };
+
+  const getMessageTypeDisplay = (type: string | number): string => {
+    if (typeof type === 'number') {
+      switch (type) {
+        case 1:
+          return "PHONE";
+        case 2:
+          return "EMAIL";
+        case 3:
+          return "FACEBOOK";
+        case 4:
+          return "REVIEW";
+        case 5:
+          return "GROUP SMS";
+        case 6:
+          return "INTERNAL CHAT";
+        default:
+          return "UNKNOWN";
+      }
+    }
+    return (type || "TEXT").toUpperCase();
+  };
+
+  const getConversationStatus = (conversation: GHLConversation): string => {
+    if (conversation.unreadCount && conversation.unreadCount > 0) {
+      return "active";
+    }
+    if (conversation.assignedTo) {
+      return "pending";
+    }
+    return "waiting";
   };
 
   const getStatusColor = (status: string) => {
@@ -129,7 +231,41 @@ export function ConversationThreadModal({
     }
   };
 
+  const getInitials = (name?: string): string => {
+    if (!name) return "??";
+    return name
+      .split(" ")
+      .map((n: string) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
+  const formatTimestamp = (dateString?: string): string => {
+    if (!dateString) return "Unknown";
+
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffHours < 1) {
+      const diffMins = Math.floor(diffMs / (1000 * 60));
+      return diffMins < 1 ? "Just now" : `${diffMins}m ago`;
+    } else if (diffHours < 24) {
+      return `${diffHours}h ago`;
+    } else if (diffDays === 1) {
+      return "1d ago";
+    } else {
+      return `${diffDays}d ago`;
+    }
+  };
+
   if (!conversation) return null;
+
+  const displayName = conversation.contactName || conversation.fullName || `Contact ${conversation.contactId}`;
+  const status = getConversationStatus(conversation);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -139,33 +275,30 @@ export function ConversationThreadModal({
             <div className="flex items-center space-x-3">
               <Avatar>
                 <AvatarImage
-                  src={conversation.avatar || "/placeholder.svg"}
-                  alt={conversation.contact}
+                  src="/placeholder.svg"
+                  alt={displayName}
                 />
                 <AvatarFallback>
-                  {conversation.contact
-                    .split(" ")
-                    .map((n) => n[0])
-                    .join("")}
+                  {getInitials(displayName)}
                 </AvatarFallback>
               </Avatar>
               <div>
                 <DialogTitle className="text-lg">
-                  {conversation.contact}
+                  {displayName}
                 </DialogTitle>
                 <div className="flex items-center space-x-2 mt-1">
-                  <Badge className={getStatusColor(conversation.status)}>
-                    {conversation.status}
+                  <Badge className={getStatusColor(status)}>
+                    {status}
                   </Badge>
-                  {conversation.unread > 0 && (
+                  {(conversation.unreadCount || 0) > 0 && (
                     <Badge variant="secondary">
-                      {conversation.unread} unread
+                      {conversation.unreadCount} unread
                     </Badge>
                   )}
                 </div>
               </div>
             </div>
-            <div className="flex items-center space-x-2">
+            {/* <div className="flex items-center space-x-2">
               <Button variant="outline" size="sm">
                 <Phone className="h-4 w-4 mr-2" />
                 Call
@@ -177,78 +310,114 @@ export function ConversationThreadModal({
               <Button variant="outline" size="sm">
                 <MoreVertical className="h-4 w-4" />
               </Button>
-            </div>
+            </div> */}
           </div>
         </DialogHeader>
 
         <ScrollArea className="flex-1 px-1">
-          <div className="space-y-4 py-4">
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex ${
-                  message.sender === "user" ? "justify-end" : "justify-start"
-                }`}
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin mr-2" />
+              <span>Loading messages...</span>
+            </div>
+          ) : error ? (
+            <div className="text-center py-8">
+              <p className="text-red-500 mb-2">Error loading messages</p>
+              <p className="text-sm text-muted-foreground">{error}</p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-2"
+                onClick={fetchMessages}
               >
+                Try Again
+              </Button>
+            </div>
+          ) : !Array.isArray(messages) || messages.length === 0 ? (
+            <div className="text-center py-8">
+              <Mail className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <p className="text-lg font-medium mb-2">No messages yet</p>
+              <p className="text-muted-foreground">
+                Start the conversation by sending a message below.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4 py-4">
+              {Array.isArray(messages) && messages.map((message) => (
                 <div
-                  className={`max-w-[70%] rounded-lg p-3 ${
-                    message.sender === "user"
+                  key={message.id}
+                  className={`flex ${message.direction === "outbound" ? "justify-end" : "justify-start"
+                    }`}
+                >
+                  <div
+                    className={`max-w-[70%] rounded-lg p-3 ${message.direction === "outbound"
                       ? "bg-primary text-primary-foreground"
                       : "bg-muted"
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <Badge
-                      variant="secondary"
-                      className={`text-xs ${getMessageTypeColor(message.type)}`}
-                    >
-                      {message.type.toUpperCase()}
-                    </Badge>
-                    <span className="text-xs opacity-70">
-                      {message.timestamp}
-                    </span>
+                      }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <Badge
+                        variant="secondary"
+                        className={`text-xs ${getMessageTypeColor(message.type || "text")}`}
+                      >
+                        {getMessageTypeDisplay(message.type || "text")}
+                      </Badge>
+                      <span className="text-xs opacity-70">
+                        {formatTimestamp(message.dateUpdated || message.dateAdded)}
+                      </span>
+                    </div>
+                    <p className="text-sm">{message.body}</p>
                   </div>
-                  <p className="text-sm">{message.content}</p>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </ScrollArea>
 
         <div className="flex-shrink-0 border-t pt-4">
           <div className="flex items-center space-x-2 mb-3">
             <Button
-              variant={messageType === "text" ? "default" : "outline"}
+              variant={messageType === "SMS" ? "default" : "outline"}
               size="sm"
-              onClick={() => setMessageType("text")}
-            >
-              Text
-            </Button>
-            <Button
-              variant={messageType === "email" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setMessageType("email")}
-            >
-              Email
-            </Button>
-            <Button
-              variant={messageType === "sms" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setMessageType("sms")}
+              onClick={() => setMessageType("SMS")}
             >
               SMS
             </Button>
+            <Button
+              variant={messageType === "Email" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setMessageType("Email")}
+              disabled={!conversation?.contactEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(conversation?.contactEmail || "")}
+              title={!conversation?.contactEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(conversation?.contactEmail || "")
+                ? "Contact has no valid email address"
+                : ""}
+            >
+              Email
+            </Button>
+            {(!conversation?.contactEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(conversation?.contactEmail || "")) && (
+              <span className="text-xs text-muted-foreground">
+                Email unavailable - invalid contact email
+              </span>
+            )}
           </div>
           <div className="flex items-center space-x-2">
             <Input
-              placeholder={`Type your ${messageType} message...`}
+              placeholder={`Type your ${messageType.toLowerCase()} message...`}
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
-              onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
+              onKeyPress={(e) => e.key === "Enter" && !sending && handleSendMessage()}
               className="flex-1"
+              disabled={sending}
             />
-            <Button onClick={handleSendMessage} disabled={!newMessage.trim()}>
-              <Send className="h-4 w-4" />
+            <Button
+              onClick={handleSendMessage}
+              disabled={!newMessage.trim() || sending}
+            >
+              {sending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
             </Button>
           </div>
         </div>
