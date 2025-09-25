@@ -25,6 +25,8 @@ export default function ContactsPage() {
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [selectedContact, setSelectedContact] = useState<GHLContact | null>(null);
     const [actionLoading, setActionLoading] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 5;
 
     // Fetch contacts from GHL
     const fetchContacts = async () => {
@@ -34,6 +36,7 @@ export default function ContactsPage() {
         try {
             const response = await ghlService.getContacts({ limit: 100 });
             setContacts(response.contacts || []);
+            setCurrentPage(1); // Reset to first page when fetching new data
         } catch (error: any) {
             console.error('Error fetching contacts:', error);
             toast({
@@ -57,6 +60,7 @@ export default function ContactsPage() {
         try {
             const response = await ghlService.searchContacts(query, 100);
             setContacts(response.contacts || []);
+            setCurrentPage(1); // Reset to first page when searching
         } catch (error: any) {
             console.error('Error searching contacts:', error);
             toast({
@@ -151,6 +155,12 @@ export default function ContactsPage() {
         }
     };
 
+    // Pagination calculations
+    const totalPages = Math.ceil(contacts.length / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const currentContacts = contacts.slice(startIndex, endIndex);
+
     // Effect to fetch contacts when GHL service is ready
     useEffect(() => {
         if (ghlService && !profileLoading) {
@@ -186,6 +196,13 @@ export default function ContactsPage() {
             window.removeEventListener('contactUpdated', handleContactUpdate)
         }
     }, [])
+
+    // Reset to valid page if current page exceeds total pages
+    useEffect(() => {
+        if (contacts.length > 0 && totalPages > 0 && currentPage > totalPages) {
+            setCurrentPage(totalPages);
+        }
+    }, [contacts.length, totalPages, currentPage]);
 
     // Show loading state while profile is loading
     if (profileLoading || (!profile?.ghl_pit_token && !profileLoading)) {
@@ -224,6 +241,55 @@ export default function ContactsPage() {
         contact.tags?.some(tag => tag.toLowerCase().includes('cold')) ||
         contact.source?.toLowerCase().includes('cold')
     ).length;
+
+    // Pagination component
+    const PaginationComponent = () => {
+        const pageNumbers = [];
+        for (let i = 1; i <= totalPages; i++) {
+            pageNumbers.push(i);
+        }
+
+        return (
+            <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200">
+                <div className="flex items-center text-sm text-gray-700">
+                    <span>
+                        Showing {startIndex + 1} to {Math.min(endIndex, contacts.length)} of {contacts.length} contacts
+                    </span>
+                </div>
+                <div className="flex items-center space-x-2">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                        disabled={currentPage === 1}
+                    >
+                        Previous
+                    </Button>
+
+                    {pageNumbers.map((pageNum) => (
+                        <Button
+                            key={pageNum}
+                            variant={currentPage === pageNum ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setCurrentPage(pageNum)}
+                            className="w-8 h-8 p-0"
+                        >
+                            {pageNum}
+                        </Button>
+                    ))}
+
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                        disabled={currentPage === totalPages}
+                    >
+                        Next
+                    </Button>
+                </div>
+            </div>
+        );
+    };
 
     return (
         <>
@@ -322,7 +388,7 @@ export default function ContactsPage() {
                             </div>
                         ) : (
                             <div className="space-y-4">
-                                {contacts.map((contact) => (
+                                {currentContacts.map((contact) => (
                                     <div
                                         key={contact.id}
                                         className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
@@ -393,6 +459,9 @@ export default function ContactsPage() {
                                 ))}
                             </div>
                         )}
+
+                        {/* Always show pagination */}
+                        {contacts.length > 0 && <PaginationComponent />}
                     </CardContent>
                 </Card>
             </div>

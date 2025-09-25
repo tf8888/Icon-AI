@@ -27,6 +27,63 @@ export default function ConversationsPage() {
     const [selectedConversation, setSelectedConversation] = useState<any>(null) // Added state for conversation thread modal
     const [isConversationThreadOpen, setIsConversationThreadOpen] = useState(false) // Added state for conversation thread modal
     const [isNewConversationOpen, setIsNewConversationOpen] = useState(false) // Added state for new conversation modal
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 5;
+
+    // Pagination calculations
+    const totalPages = Math.ceil(conversations.length / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const currentConversations = conversations.slice(startIndex, endIndex);
+
+    // Pagination component
+    const PaginationComponent = () => {
+        const pageNumbers = [];
+        for (let i = 1; i <= totalPages; i++) {
+            pageNumbers.push(i);
+        }
+
+        return (
+            <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200">
+                <div className="flex items-center text-sm text-gray-700">
+                    <span>
+                        Showing {startIndex + 1} to {Math.min(endIndex, conversations.length)} of {conversations.length} conversations
+                    </span>
+                </div>
+                <div className="flex items-center space-x-2">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                        disabled={currentPage === 1}
+                    >
+                        Previous
+                    </Button>
+
+                    {pageNumbers.map((pageNum) => (
+                        <Button
+                            key={pageNum}
+                            variant={currentPage === pageNum ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setCurrentPage(pageNum)}
+                            className="w-8 h-8 p-0"
+                        >
+                            {pageNum}
+                        </Button>
+                    ))}
+
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                        disabled={currentPage === totalPages}
+                    >
+                        Next
+                    </Button>
+                </div>
+            </div>
+        );
+    };
 
     // Fetch conversations on mount and when service is ready
     useEffect(() => {
@@ -62,6 +119,13 @@ export default function ConversationsPage() {
         }
     }, [])
 
+    // Reset to valid page if current page exceeds total pages
+    useEffect(() => {
+        if (conversations.length > 0 && totalPages > 0 && currentPage > totalPages) {
+            setCurrentPage(totalPages);
+        }
+    }, [conversations.length, totalPages, currentPage]);
+
     const fetchConversations = async () => {
         if (!conversationsService) return;
 
@@ -74,6 +138,7 @@ export default function ConversationsPage() {
                 sortBy: 'date_updated'
             });
             setConversations(response.conversations || []);
+            setCurrentPage(1); // Reset to first page when fetching new data
         } catch (err: any) {
             setError(err.message);
             console.error('Error fetching conversations:', err);
@@ -93,6 +158,7 @@ export default function ConversationsPage() {
                 50
             );
             setConversations(response.conversations || []);
+            setCurrentPage(1); // Reset to first page when searching
         } catch (err: any) {
             setError(err.message);
             console.error('Error searching conversations:', err);
@@ -311,7 +377,7 @@ export default function ConversationsPage() {
                             </div>
                         ) : (
                             <div className="space-y-4">
-                                {conversations.map((conversation) => {
+                                {currentConversations.map((conversation) => {
                                     const status = getConversationStatus(conversation);
                                     const displayName = conversation.contactName || conversation.fullName || `Contact ${conversation.contactId}`;
 
@@ -356,6 +422,9 @@ export default function ConversationsPage() {
                                 })}
                             </div>
                         )}
+
+                        {/* Always show pagination */}
+                        {conversations.length > 0 && <PaginationComponent />}
                     </CardContent>
                 </Card>
             </div>
