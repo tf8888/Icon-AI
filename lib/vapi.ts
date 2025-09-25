@@ -31,7 +31,8 @@ export async function createPhoneNumber(userId: string) {
       provider: "vapi",
     }), // Adjust country as needed
   });
+  const data = await res.json();
 
-  if (!res.ok) throw new Error("Failed to create phone number");
-  return res.json();
+  if (!data.id) throw new Error("Failed to create phone number");
+  return data;
 }
