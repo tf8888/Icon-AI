@@ -46,6 +46,22 @@ export default function ConversationsPage() {
         }
     }, [searchTerm, conversationsService, profileLoading]);
 
+    // Listen for conversation updates
+    useEffect(() => {
+        const handleConversationUpdate = () => {
+            // Add 3-second delay to allow GHL API to propagate changes
+            setTimeout(() => {
+                fetchConversations()
+            }, 3000)
+        }
+
+        window.addEventListener('conversationUpdated', handleConversationUpdate)
+
+        return () => {
+            window.removeEventListener('conversationUpdated', handleConversationUpdate)
+        }
+    }, [])
+
     const fetchConversations = async () => {
         if (!conversationsService) return;
 
@@ -154,7 +170,9 @@ export default function ConversationsPage() {
 
     const handleConversationCreated = () => {
         // Refresh conversations list when a new conversation is created
-        fetchConversations();
+        setTimeout(() => {
+            fetchConversations()
+        }, 3000)
     }
 
     // Calculate stats from real data

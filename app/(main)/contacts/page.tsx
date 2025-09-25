@@ -80,7 +80,9 @@ export default function ContactsPage() {
                 title: "Success",
                 description: "Contact created successfully"
             });
-            fetchContacts();
+            setTimeout(() => {
+                fetchContacts()
+            }, 5000)
         } catch (error: any) {
             console.error('Error creating contact:', error);
             toast({
@@ -107,7 +109,9 @@ export default function ContactsPage() {
                 title: "Success",
                 description: "Contact updated successfully"
             });
-            fetchContacts();
+            setTimeout(() => {
+                fetchContacts()
+            }, 3000)
         } catch (error: any) {
             console.error('Error updating contact:', error);
             toast({
@@ -131,7 +135,10 @@ export default function ContactsPage() {
                 title: "Success",
                 description: "Contact deleted successfully"
             });
-            fetchContacts();
+
+            setTimeout(() => {
+                fetchContacts()
+            }, 5000)
         } catch (error: any) {
             console.error('Error deleting contact:', error);
             toast({
@@ -163,6 +170,22 @@ export default function ContactsPage() {
 
         return () => clearTimeout(timeoutId);
     }, [searchTerm]);
+
+    // Listen for contact updates
+    useEffect(() => {
+        const handleContactUpdate = () => {
+            // Add 3-second delay to allow GHL API to propagate changes
+            setTimeout(() => {
+                fetchContacts()
+            }, 3000)
+        }
+
+        window.addEventListener('contactUpdated', handleContactUpdate)
+
+        return () => {
+            window.removeEventListener('contactUpdated', handleContactUpdate)
+        }
+    }, [])
 
     // Show loading state while profile is loading
     if (profileLoading || (!profile?.ghl_pit_token && !profileLoading)) {

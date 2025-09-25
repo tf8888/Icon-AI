@@ -1,94 +1,150 @@
-import { type NextRequest, NextResponse } from "next/server"
+import { type NextRequest, NextResponse } from "next/server";
+import { GHLOpportunitiesService } from "@/lib/services/ghlOpportunitiesService";
 
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url)
-  const accessToken = searchParams.get("access_token")
-  const locationId = searchParams.get("location_id")
+  const { searchParams } = new URL(request.url);
+  const accessToken = searchParams.get("access_token");
+  const locationId = searchParams.get("location_id");
+
+  // Optional search parameters
+  const query = searchParams.get("query");
+  const limit = searchParams.get("limit");
+  const offset = searchParams.get("offset");
+  const pipelineId = searchParams.get("pipelineId");
+  const pipelineStageId = searchParams.get("pipelineStageId");
+  const assignedTo = searchParams.get("assignedTo");
+  const status = searchParams.get("status");
+  const startDate = searchParams.get("startDate");
+  const endDate = searchParams.get("endDate");
 
   if (!accessToken || !locationId) {
-    return NextResponse.json({ error: "Missing access token or location ID" }, { status: 400 })
+    return NextResponse.json(
+      { error: "Missing access token or location ID" },
+      { status: 400 }
+    );
   }
 
   try {
-    const response = await fetch(`https://services.leadconnectorhq.com/opportunities/`, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        Version: "2021-07-28",
-        "Content-Type": "application/json",
-      },
-    })
+    const opportunitiesService = new GHLOpportunitiesService(
+      accessToken,
+      locationId
+    );
 
-    if (!response.ok) {
-      throw new Error(`GoHighLevel API error: ${response.status}`)
-    }
+    const params: any = {};
+    if (query) params.query = query;
+    if (limit) params.limit = parseInt(limit);
+    if (offset) params.offset = parseInt(offset);
+    if (pipelineId) params.pipelineId = pipelineId;
+    if (pipelineStageId) params.pipelineStageId = pipelineStageId;
+    if (assignedTo) params.assignedTo = assignedTo;
+    if (status) params.status = status;
+    if (startDate) params.startDate = startDate;
+    if (endDate) params.endDate = endDate;
 
-    const data = await response.json()
-    return NextResponse.json(data)
+    const data = await opportunitiesService.searchOpportunities(params);
+    return NextResponse.json(data);
   } catch (error) {
-    console.error("Error fetching opportunities:", error)
-    return NextResponse.json({ error: "Failed to fetch opportunities" }, { status: 500 })
+    console.error("Error fetching opportunities:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch opportunities" },
+      { status: 500 }
+    );
   }
 }
 
 export async function POST(request: NextRequest) {
-  const { accessToken, locationId, opportunity } = await request.json()
-
-  if (!accessToken || !locationId || !opportunity) {
-    return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
-  }
-
   try {
-    const response = await fetch(`https://services.leadconnectorhq.com/opportunities/`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        Version: "2021-07-28",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        ...opportunity,
-        locationId,
-      }),
-    })
+    const body = await request.json();
+    console.log("POST request body:", JSON.stringify(body, null, 2));
 
-    if (!response.ok) {
-      throw new Error(`GoHighLevel API error: ${response.status}`)
+    const { accessToken, locationId, opportunity } = body;
+
+    if (!accessToken || !locationId || !opportunity) {
+      console.error("Missing required fields:", {
+        accessToken: !!accessToken,
+        locationId: !!locationId,
+        opportunity: !!opportunity,
+      });
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 }
+      );
     }
 
-    const data = await response.json()
-    return NextResponse.json(data)
+    console.log("Creating opportunity with data:", opportunity);
+
+    const opportunitiesService = new GHLOpportunitiesService(
+      accessToken,
+      locationId
+    );
+
+    const data = await opportunitiesService.createOpportunity({
+      ...opportunity,
+      locationId, // Ensure locationId is included
+    });
+
+    console.log("Opportunity created successfully:", data);
+    return NextResponse.json(data);
   } catch (error) {
-    console.error("Error creating opportunity:", error)
-    return NextResponse.json({ error: "Failed to create opportunity" }, { status: 500 })
+    console.error("Error creating opportunity:", error);
+    return NextResponse.json(
+      {
+        error: `Failed to create opportunity: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`,
+      },
+      { status: 500 }
+    );
   }
 }
 
 export async function PUT(request: NextRequest) {
-  const { accessToken, opportunityId, updates } = await request.json()
+  console.log("API: PUT opportunities route called");
 
-  if (!accessToken || !opportunityId || !updates) {
-    return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
+  const { accessToken, locationId, opportunityId, updates } =
+    await request.json();
+
+  console.log("API: Received data:", {
+    opportunityId,
+    updates,
+    accessToken: accessToken ? `${accessToken.substring(0, 10)}...` : "missing",
+    locationId,
+  });
+
+  if (!accessToken || !locationId || !opportunityId || !updates) {
+    console.log("API: Missing required fields");
+    return NextResponse.json(
+      { error: "Missing required fields" },
+      { status: 400 }
+    );
   }
 
   try {
-    const response = await fetch(`https://services.leadconnectorhq.com/opportunities/${opportunityId}`, {
-      method: "PUT",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        Version: "2021-07-28",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(updates),
-    })
+    const opportunitiesService = new GHLOpportunitiesService(
+      accessToken,
+      locationId
+    );
 
-    if (!response.ok) {
-      throw new Error(`GoHighLevel API error: ${response.status}`)
-    }
+    console.log("API: Calling service updateOpportunity with:", {
+      opportunityId,
+      updates,
+    });
 
-    const data = await response.json()
-    return NextResponse.json(data)
+    const data = await opportunitiesService.updateOpportunity(
+      opportunityId,
+      updates
+    );
+
+    console.log("API: Successfully updated opportunity:", data.id);
+    return NextResponse.json(data);
   } catch (error) {
-    console.error("Error updating opportunity:", error)
-    return NextResponse.json({ error: "Failed to update opportunity" }, { status: 500 })
+    console.error("API Error updating opportunity:", error);
+    return NextResponse.json(
+      {
+        error: "Failed to update opportunity",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 }
+    );
   }
 }
