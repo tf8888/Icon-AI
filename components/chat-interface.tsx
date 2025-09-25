@@ -145,10 +145,10 @@ export function ChatInterface() {
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full min-h-0">
       {/* Chat Messages */}
-      <ScrollArea ref={scrollAreaRef} className="flex-1 p-4">
-        <div className="space-y-4">
+      <ScrollArea ref={scrollAreaRef} className="flex-1 min-h-0">
+        <div className="p-4 space-y-4">
           {messages.map((message) => (
             <div
               key={message.id}
@@ -158,7 +158,7 @@ export function ChatInterface() {
                   : ""
               }`}
             >
-              <Avatar className="h-8 w-8">
+              <Avatar className="h-8 w-8 flex-shrink-0">
                 <AvatarFallback
                   className={
                     message.role === "user"
@@ -189,7 +189,7 @@ export function ChatInterface() {
           ))}
           {isLoading && (
             <div className="flex items-start space-x-3">
-              <Avatar className="h-8 w-8">
+              <Avatar className="h-8 w-8 flex-shrink-0">
                 <AvatarFallback className="bg-muted">
                   <Bot className="h-4 w-4" />
                 </AvatarFallback>
@@ -208,7 +208,7 @@ export function ChatInterface() {
       </ScrollArea>
 
       {/* Chat Input */}
-      <div className="border-t p-4">
+      <div className="border-t p-4 flex-shrink-0">
         <form onSubmit={handleSubmit} className="flex space-x-2">
           <Input
             ref={inputRef}
