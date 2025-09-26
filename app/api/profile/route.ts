@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import { auth, clerkClient } from "@clerk/nextjs/server";
 import { createClient } from "@supabase/supabase-js";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -34,10 +34,17 @@ export async function GET(request: NextRequest) {
     }
 
     if (!profile) {
-      // Create new profile
+      // Create new profile - get user email from Clerk
+      const client = await clerkClient();
+      const user = await client.users.getUser(userId);
+      const userEmail = user.emailAddresses?.[0]?.emailAddress || null;
+      
       const { data: newProfile, error: insertError } = await supabase
         .from("profile")
-        .insert([{ user_id: userId }])
+        .insert([{ 
+          user_id: userId,
+          email: userEmail
+        }])
         .select()
         .single();
 

@@ -7,6 +7,7 @@ import { createClient } from '@supabase/supabase-js';
 interface Profile {
     id: number;
     user_id: string;
+    email: string | null;
     created_at: string;
     ghl_pit_token: string | null;
     ghl_location_id: string | null;
@@ -74,9 +75,13 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
             if (error) {
                 if (error.code === 'PGRST116') {
                     // No profile found, create a new one
+                    const userEmail = user.emailAddresses?.[0]?.emailAddress || null;
                     const { data: newProfile, error: insertError } = await supabase
                         .from('profile')
-                        .insert([{ user_id: user.id }])
+                        .insert([{ 
+                            user_id: user.id,
+                            email: userEmail
+                        }])
                         .select()
                         .single();
 
