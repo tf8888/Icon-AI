@@ -88,7 +88,7 @@ export async function POST(req: Request) {
             locationId: profile.ghl_location_id,
             model: {
               provider: "openai",
-              model: "gpt-4",
+              model: "gpt-4o",
               messages: [],
             },
           };

@@ -60,7 +60,7 @@ export async function createAssistantWithTools(input: CreateAssistantInput) {
     ...(assistantOverrides ?? {}),
     model: {
       provider: "openai",
-      model: "gpt-4o-mini",
+      model: "gpt-4o",
       toolIds: [tool.id],
       messages: mergedMessages,
       ...(assistantOverrides?.model ?? {}),

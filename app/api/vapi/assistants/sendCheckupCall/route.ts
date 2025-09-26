@@ -32,7 +32,7 @@ export async function POST(req: Request) {
 
   const client = new VapiClient({ token });
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
+  
   // Get user credentials from the request body or database
   let bearer = body.ghl_pit_token;
   let locationId = body.ghl_location_id || body.locationId;
@@ -52,6 +52,7 @@ export async function POST(req: Request) {
         .single();
 
       if (error) {
+        console.error("Error fetching user profile: ", error);
         return NextResponse.json(
           { error: "Failed to fetch user profile: " + error.message },
           { status: 400 }
@@ -152,7 +153,7 @@ export async function POST(req: Request) {
       model: {
         ...body.model,
         provider: "openai",
-        model: "gpt-4", // Changed from gpt-5 to gpt-4 as it's more commonly available
+        model: "gpt-4o", // Changed from gpt-5 to gpt-4 as it's more commonly available
         toolIds: [tool.id],
         messages: mergedMessages,
       },
