@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { X, Mic, MicOff, Phone, PhoneOff } from "lucide-react";
+import { getVapiClient } from "@/lib/vapiWeb";
+import { useProfile } from "@/lib/contexts/ProfileContext";
 
 interface VoiceChatModalProps {
   isOpen: boolean;
@@ -11,118 +13,150 @@ interface VoiceChatModalProps {
 }
 
 export function VoiceChatModal({ isOpen, onClose }: VoiceChatModalProps) {
-  const [isListening, setIsListening] = useState(false);
+  const { profile } = useProfile();
+  console.log("profile", profile);
+  const vapiRef = useRef<any | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [conversation, setConversation] = useState<
     Array<{ role: "user" | "agent"; message: string; timestamp: string }>
   >([]);
-  const recognitionRef = useRef<any | null>(null);
-  const synthRef = useRef<SpeechSynthesis | null>(null);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      // Initialize speech recognition
-      const SpeechRecognition =
-        window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (SpeechRecognition) {
-        recognitionRef.current = new SpeechRecognition();
-        recognitionRef.current.continuous = true;
-        recognitionRef.current.interimResults = true;
+    if (typeof window === "undefined") return;
+    try {
+      vapiRef.current = getVapiClient();
+      const vapi = vapiRef.current;
 
-        recognitionRef.current.onresult = (event: any) => {
-          const current = event.resultIndex;
-          const transcript = event.results[current][0].transcript;
-          setTranscript(transcript);
-
-          if (event.results[current].isFinal) {
-            handleUserMessage(transcript);
-            setTranscript("");
+      vapi.on("call-start", () => {
+        setIsConnected(true);
+      });
+      vapi.on("call-end", () => {
+        setIsConnected(false);
+        setIsListening(false);
+        setTranscript("");
+      });
+      vapi.on("speech-start", () => {
+        setIsListening(true);
+      });
+      vapi.on("speech-end", () => {
+        setIsListening(false);
+      });
+      vapi.on("message", (m: any) => {
+        try {
+          if (m?.type === "transcript") {
+            const text = m?.text || m?.message?.content || "";
+            if (m?.final) {
+              if (text) {
+                setConversation((prev) => [
+                  ...prev,
+                  {
+                    role: (m?.role === "user" ? "user" : "agent") as
+                      | "user"
+                      | "agent",
+                    message: String(text),
+                    timestamp: new Date().toLocaleTimeString(),
+                  },
+                ]);
+              }
+              setTranscript("");
+            } else {
+              setTranscript(String(text));
+            }
+            return;
           }
-        };
 
-        recognitionRef.current.onerror = (event: any) => {
-          console.error("Speech recognition error:", event.error);
-          setIsListening(false);
-        };
-      }
+          const roleRaw = m?.message?.role || m?.role;
+          const contentRaw = m?.message?.content ?? m?.content ?? m?.text;
+          const content = Array.isArray(contentRaw)
+            ? contentRaw
+                .map((c: any) => (typeof c === "string" ? c : c?.text || ""))
+                .filter(Boolean)
+                .join(" ")
+            : contentRaw;
 
-      // Initialize speech synthesis
-      synthRef.current = window.speechSynthesis;
+          if (content) {
+            const mappedRole: "user" | "agent" =
+              roleRaw === "user" ? "user" : "agent";
+            setConversation((prev) => [
+              ...prev,
+              {
+                role: mappedRole,
+                message: String(content),
+                timestamp: new Date().toLocaleTimeString(),
+              },
+            ]);
+          }
+        } catch (e) {
+          console.error("Failed to handle vapi message", e, m);
+        }
+      });
+      vapi.on("error", (e: any) => {
+        console.error(e);
+      });
+    } catch (e) {
+      console.error(e);
     }
+
+    return () => {
+      // No explicit off() API—component unmount will end listeners on reload
+    };
   }, []);
 
-  const handleUserMessage = (message: string) => {
-    const timestamp = new Date().toLocaleTimeString();
-    setConversation((prev) => [...prev, { role: "user", message, timestamp }]);
-
-    // Simulate AI agent response
-    setTimeout(() => {
-      const responses = [
-        "I understand you're looking for information about your GoHighLevel account. How can I help you today?",
-        "Let me check your contact database for that information.",
-        "I can help you with managing your leads and opportunities. What specific area would you like to focus on?",
-        "Based on your recent activity, I see you have several active conversations. Would you like me to summarize them?",
-        "I can assist you with scheduling follow-ups or updating contact information. What would you prefer?",
-      ];
-      const response = responses[Math.floor(Math.random() * responses.length)];
-      const agentTimestamp = new Date().toLocaleTimeString();
-
-      setConversation((prev) => [
-        ...prev,
-        { role: "agent", message: response, timestamp: agentTimestamp },
-      ]);
-
-      // Speak the response
-      if (synthRef.current) {
-        const utterance = new SpeechSynthesisUtterance(response);
-        utterance.rate = 0.9;
-        utterance.pitch = 1;
-        synthRef.current.speak(utterance);
-      }
-    }, 1500);
-  };
-
-  const startListening = () => {
-    if (recognitionRef.current) {
-      setIsListening(true);
-      recognitionRef.current.start();
-    }
-  };
-
-  const stopListening = () => {
-    if (recognitionRef.current) {
-      setIsListening(false);
-      recognitionRef.current.stop();
-    }
-  };
-
-  const toggleConnection = () => {
+  const toggleConnection = async () => {
+    const vapi = vapiRef.current;
+    if (!vapi) return;
     if (isConnected) {
-      setIsConnected(false);
-      stopListening();
-      setConversation([]);
+      try {
+        vapi.stop();
+      } finally {
+        setConversation([]);
+      }
     } else {
-      setIsConnected(true);
-      setConversation([
-        {
+      try {
+        const res = await fetch("/api/vapi/assistants/in-app", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            callType: "checkup",
+            ghl_pit_token: profile?.ghl_pit_token,
+            ghl_location_id: profile?.ghl_location_id,
+            model: { messages: [] },
+          }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err?.error || "Failed to create assistant");
+        }
+        const assistant = await res.json();
+        setConversation([{
           role: "agent",
-          message:
-            "Hello! I'm your GoHighLevel AI assistant. I can help you manage your contacts, opportunities, and answer questions about your CRM. How can I assist you today?",
+          message: "Connecting to voice assistant...",
           timestamp: new Date().toLocaleTimeString(),
-        },
-      ]);
-
-      // Speak welcome message
-      if (synthRef.current) {
-        const utterance = new SpeechSynthesisUtterance(
-          "Hello! I'm your GoHighLevel AI assistant. How can I help you today?"
-        );
-        utterance.rate = 0.9;
-        utterance.pitch = 1;
-        synthRef.current.speak(utterance);
+        }]);
+        vapi.start(assistant.id);
+        const muted = vapi.isMuted();
+        if (muted) vapi.setMuted(false);
+        setIsMuted(vapi.isMuted());
+      } catch (e: any) {
+        console.error(e);
+        setConversation([{
+          role: "agent",
+          message: e?.message || "Failed to connect to assistant",
+          timestamp: new Date().toLocaleTimeString(),
+        }]);
       }
     }
+  };
+
+  const toggleMute = () => {
+    const vapi = vapiRef.current;
+    if (!vapi) return;
+    const next = !isMuted;
+    vapi.setMuted(next);
+    setIsMuted(vapi.isMuted());
   };
 
   return (
@@ -214,19 +248,19 @@ export function VoiceChatModal({ isOpen, onClose }: VoiceChatModalProps) {
               )}
             </Button>
 
-            {/* Microphone Button */}
+            {/* Mute Button */}
             {isConnected && (
               <Button
-                onClick={isListening ? stopListening : startListening}
+                onClick={toggleMute}
                 size="lg"
-                variant={isListening ? "default" : "outline"}
+                variant={isMuted ? "default" : "outline"}
                 className={`h-16 w-16 rounded-full ${
-                  isListening
-                    ? "bg-primary hover:bg-primary/90 text-primary-foreground animate-pulse"
+                  isMuted
+                    ? "bg-primary hover:bg-primary/90 text-primary-foreground"
                     : "border-white/30 text-white hover:bg-white/10"
                 }`}
               >
-                {isListening ? (
+                {isMuted ? (
                   <MicOff className="h-8 w-8" />
                 ) : (
                   <Mic className="h-8 w-8" />
@@ -239,8 +273,10 @@ export function VoiceChatModal({ isOpen, onClose }: VoiceChatModalProps) {
           <div className="text-center mt-4">
             {!isConnected ? (
               <p className="text-white/70">Start voice chat?</p>
+            ) : isMuted ? (
+              <p className="text-white/70">Mic muted</p>
             ) : isListening ? (
-              <p className="text-white/70">Listening... Speak now</p>
+              <p className="text-white/70">Listening...</p>
             ) : (
               <p className="text-white/70">Tap microphone to speak</p>
             )}

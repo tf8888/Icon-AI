@@ -47,6 +47,7 @@
     "@supabase/supabase-js": "^2.34.0",
     "@tailwindcss/typography": "^0.5.19",
     "@vapi-ai/server-sdk": "^0.10.2",
+    "@vapi-ai/web": "^2.4.0",
     "@vercel/analytics": "latest",
     "ai": "latest",
     "autoprefixer": "^10.4.20",

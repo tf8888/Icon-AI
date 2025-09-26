@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { VapiClient } from "@vapi-ai/server-sdk";
+import { createAssistantWithTools } from "@/lib/vapiAssistant";
 import supabase from "@/lib/supabaseClient";
 
 export async function POST(req: Request) {
@@ -81,59 +82,39 @@ export async function POST(req: Request) {
     );
   }
 
-  const serverUrl = "https://services.leadconnectorhq.com/mcp/";
-
   try {
-    const toolPayload: any = {
-      type: "mcp",
-      server: {
-        url: serverUrl,
-        headers: {
-          Authorization: `Bearer ${bearer}`,
-          locationId: body.locationId,
-        },
-      },
-      metadata: {
-        protocol: "shttp",
-      },
-    };
-    const tool = await client.tools.create(toolPayload);
-    console.log("tool created: ", tool);
-
-    const instructions:
-      | string
-      | undefined = `Your job is to provide the user with a summary of their business and help them with their GoHighLevel tasks. Their location id is ${locationId} use this for all tool calls. This is a ${
-      body.callType || "checkup"
-    } call to update them on their business progress.`;
     const messagesFromBody = Array.isArray(body?.model?.messages)
       ? body.model.messages
       : [];
-    const mergedMessages = instructions
-      ? [
-          { role: "system", content: instructions },
-          {
-            role: "user",
-            content:
-              "Give me an update based on this snapshot: " +
-              JSON.stringify(body),
-          },
-          ...messagesFromBody,
-        ]
-      : messagesFromBody;
 
-    const assistantPayload = {
-      ...(body ?? {}),
-      model: {
-        ...body.model,
-        provider: "openai",
-        model: "gpt-4", // Changed from gpt-5 to gpt-4 as it's more commonly available
-        toolIds: [tool.id],
-        messages: mergedMessages,
-      },
-    } as any;
+    // Whitelist assistant overrides to avoid invalid props
+    const assistantOverrides: any = {};
+    if (body && typeof body === "object") {
+      if (typeof body.name === "string") assistantOverrides.name = body.name;
+      if (typeof body.recordingEnabled === "boolean") assistantOverrides.recordingEnabled = body.recordingEnabled;
+      if (body.voice && typeof body.voice === "object") assistantOverrides.voice = body.voice;
+      if (body.transcriber && typeof body.transcriber === "object") assistantOverrides.transcriber = body.transcriber;
+      if (body.toolDefaults && typeof body.toolDefaults === "object") assistantOverrides.toolDefaults = body.toolDefaults;
+      if (body.variableValues && typeof body.variableValues === "object") assistantOverrides.variableValues = body.variableValues;
+      if (body.model && typeof body.model === "object") assistantOverrides.model = body.model;
+    }
 
-    console.log("assistant payload: ", assistantPayload);
-    const assistant = await client.assistants.create(assistantPayload);
+    const { assistant } = await createAssistantWithTools({
+      client,
+      bearer,
+      locationId,
+      callType: body.callType || "checkup",
+      modelMessages: [
+        {
+          role: "user",
+          content:
+            "Give me an update based on this snapshot: " +
+            JSON.stringify(body),
+        },
+        ...messagesFromBody,
+      ],
+      assistantOverrides,
+    });
     console.log("assistant created: ", assistant);
 
     // Extract phone number from SIP URI if needed
