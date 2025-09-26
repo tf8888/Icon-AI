@@ -3,7 +3,6 @@ import { createClient } from "@supabase/supabase-js";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const N8N_WEBHOOK_URL = process.env.N8N_WEBHOOK_URL;
 
 interface VapiCallEndedMessage {
   type: "end-of-call-report";
@@ -57,106 +56,15 @@ interface VapiCallEndedMessage {
   timestamp: string;
 }
 
-// Function to send data to n8n webhook with retry logic
-async function sendToN8nWebhook(
-  summary: string,
-  customerEmail: string,
-  customerNumber: string,
-  callData: any,
-  retryCount: number = 0
-) {
-  const maxRetries = 3;
-  const retryDelay = 1000 * Math.pow(2, retryCount); // Exponential backoff
-
-  try {
-    const payload = {
-      summary: summary,
-      customerEmail: customerEmail,
-      customerNumber: customerNumber,
-      callId: callData.call.id,
-      timestamp: callData.timestamp,
-      callData: callData,
-      retryAttempt: retryCount,
-    };
-
-    console.log(
-      `Sending to n8n webhook (attempt ${retryCount + 1}/${maxRetries + 1}):`,
-      {
-        callId: callData.call.id,
-        customerNumber,
-        customerEmail,
-        summaryLength: summary.length,
-      }
-    );
-
-    const response = await fetch(N8N_WEBHOOK_URL!, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(10000), // 10 second timeout
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => "Unknown error");
-      throw new Error(
-        `N8N webhook failed with status ${response.status}: ${response.statusText}. Response: ${errorText}`
-      );
-    }
-
-    const result = await response.json();
-    console.log("Successfully sent to n8n webhook:", {
-      callId: callData.call.id,
-      responseStatus: response.status,
-      result: result,
-    });
-    return result;
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error(`N8N webhook attempt ${retryCount + 1} failed:`, {
-      callId: callData.call.id,
-      error: errorMessage,
-      customerNumber,
-    });
-
-    // Retry logic
-    if (retryCount < maxRetries) {
-      console.log(`Retrying in ${retryDelay}ms...`);
-      await new Promise((resolve) => setTimeout(resolve, retryDelay));
-      return sendToN8nWebhook(
-        summary,
-        customerEmail,
-        customerNumber,
-        callData,
-        retryCount + 1
-      );
-    }
-
-    // All retries failed
-    console.error(
-      `All ${maxRetries + 1} attempts failed for call ${callData.call.id}`,
-      {
-        finalError: errorMessage,
-        customerNumber,
-        customerEmail,
-      }
-    );
-    throw error;
-  }
-}
-
-// Function to get customer email from phone number with enhanced error handling
-async function getCustomerEmailFromPhone(
-  phoneNumber: string
-): Promise<string | null> {
+// Function to get user_id from phone number
+async function getUserIdFromPhone(phoneNumber: string): Promise<string | null> {
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-    console.error("Supabase configuration missing for email lookup");
+    console.error("Supabase configuration missing for user lookup");
     return null;
   }
 
   try {
-    console.log(`Looking up customer email for phone: ${phoneNumber}`);
+    console.log(`Looking up user_id for phone: ${phoneNumber}`);
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     // Clean the phone number (remove formatting)
@@ -170,26 +78,26 @@ async function getCustomerEmailFromPhone(
       cleanPhone.startsWith("1") ? cleanPhone.substring(1) : `1${cleanPhone}`, // With/without area code prefix
     ];
 
-    console.log(`Trying phone variations:`, phoneVariations);
+    console.log(`Trying phone variations for user lookup:`, phoneVariations);
 
-    // This is a placeholder - you'll need to adjust based on your actual database schema
-    // You might have a contacts table or similar where you store customer email and phone mappings
     for (const phoneVar of phoneVariations) {
       try {
         const { data, error } = await supabase
-          .from("profile") // Adjust table name as needed
-          .select("email")
+          .from("profile")
+          .select("user_id")
           .eq("phone_number", phoneVar)
-          .maybeSingle(); // Use maybeSingle to avoid throwing on no results
+          .maybeSingle();
 
         if (error) {
           console.warn(`Error querying phone ${phoneVar}:`, error.message);
           continue;
         }
 
-        if (data?.email) {
-          console.log(`Found email for phone ${phoneNumber}: ${data.email}`);
-          return data.email;
+        if (data?.user_id) {
+          console.log(
+            `Found user_id for phone ${phoneNumber}: ${data.user_id}`
+          );
+          return data.user_id;
         }
       } catch (queryError) {
         console.warn(
@@ -200,14 +108,65 @@ async function getCustomerEmailFromPhone(
       }
     }
 
-    console.log(`No email found for any phone variation of ${phoneNumber}`);
+    console.log(`No user_id found for any phone variation of ${phoneNumber}`);
     return null;
   } catch (error) {
-    console.error("Database error fetching customer email:", {
+    console.error("Database error fetching user_id:", {
       phoneNumber,
       error: error instanceof Error ? error.message : String(error),
     });
     return null;
+  }
+}
+
+// Function to save call summary to checkups table
+async function saveCallSummaryToDatabase(
+  userId: string,
+  summary: string,
+  callData: VapiCallEndedMessage
+): Promise<{ success: boolean; id?: number; error?: string }> {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+    return { success: false, error: "Supabase configuration missing" };
+  }
+
+  try {
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+    console.log(`💾 Saving call summary to database:`, {
+      userId,
+      summaryLength: summary.length,
+      callId: callData.call.id,
+    });
+
+    const { data, error } = await supabase
+      .from("checkups")
+      .insert({
+        user_id: userId,
+        summary: summary,
+        created_at: new Date().toISOString(),
+      })
+      .select("id")
+      .single();
+
+    if (error) {
+      console.error("Error saving to checkups table:", error);
+      return { success: false, error: error.message };
+    }
+
+    console.log(`✅ Successfully saved call summary:`, {
+      checkupId: data.id,
+      userId,
+      callId: callData.call.id,
+    });
+
+    return { success: true, id: data.id };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("Database error saving call summary:", {
+      userId,
+      error: errorMessage,
+    });
+    return { success: false, error: errorMessage };
   }
 }
 
@@ -304,63 +263,110 @@ export async function POST(req: Request) {
 
       if (customerNumber === "Unknown") {
         console.warn("⚠️ No customer phone number available in call data");
-      }
-
-      // Get customer email from phone number
-      const customerEmail = await getCustomerEmailFromPhone(customerNumber);
-
-      if (!customerEmail) {
-        console.warn(
-          `⚠️ No email found for customer phone number: ${customerNumber}`
+        return NextResponse.json(
+          {
+            success: false,
+            error: "No customer phone number available",
+            callId: callData.call.id,
+          },
+          { status: 400 }
         );
       }
 
-      // Send to n8n webhook with comprehensive error handling
+      // Get user_id from phone number
+      const userId = await getUserIdFromPhone(customerNumber);
+
+      if (!userId) {
+        console.warn(
+          `⚠️ No user_id found for customer phone number: ${customerNumber}`
+        );
+        return NextResponse.json(
+          {
+            success: false,
+            error: "User not found for this phone number",
+            callId: callData.call.id,
+            customerNumber,
+          },
+          { status: 404 }
+        );
+      }
+
+      // Save call summary to database
       try {
-        await sendToN8nWebhook(
+        const saveResult = await saveCallSummaryToDatabase(
+          userId,
           summary,
-          "t2k20802@gmail.com",
-          customerNumber,
           callData
         );
 
         const processingTime = Date.now() - startTime;
-        console.log(
-          `✅ Successfully processed call ${callData.call.id} and sent summary to n8n`,
-          {
+
+        if (saveResult.success) {
+          console.log(
+            `✅ Successfully processed call ${callData.call.id} and saved summary to database`,
+            {
+              callId: callData.call.id,
+              userId,
+              customerNumber,
+              checkupId: saveResult.id,
+              summaryLength: summary.length,
+              summarySource,
+              hasAnalysis: !!callData.call.analysis,
+              hasTranscript: !!callData.call.transcript,
+              processingTimeMs: processingTime,
+            }
+          );
+
+          return NextResponse.json({
+            success: true,
+            message: "Call summary saved successfully",
             callId: callData.call.id,
+            userId,
             customerNumber,
-            customerEmail: customerEmail || "fallback_email",
+            checkupId: saveResult.id,
             summaryLength: summary.length,
             summarySource,
-            hasAnalysis: !!callData.call.analysis,
-            hasTranscript: !!callData.call.transcript,
             processingTimeMs: processingTime,
-          }
-        );
+          });
+        } else {
+          console.error(
+            `❌ Failed to save call ${callData.call.id} summary to database:`,
+            {
+              callId: callData.call.id,
+              userId,
+              customerNumber,
+              error: saveResult.error,
+              summaryLength: summary.length,
+              summarySource,
+              processingTimeMs: processingTime,
+            }
+          );
 
-        return NextResponse.json({
-          success: true,
-          message: "Call summary sent successfully",
-          callId: callData.call.id,
-          customerNumber,
-          summaryLength: summary.length,
-          summarySource,
-          emailFound: !!customerEmail,
-          processingTimeMs: processingTime,
-        });
-      } catch (webhookError) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: "Failed to save summary to database",
+              callId: callData.call.id,
+              details: saveResult.error,
+              userId,
+              customerNumber,
+              summaryLength: summary.length,
+              summarySource,
+              processingTimeMs: processingTime,
+            },
+            { status: 500 }
+          );
+        }
+      } catch (saveError) {
         const processingTime = Date.now() - startTime;
         const errorMessage =
-          webhookError instanceof Error
-            ? webhookError.message
-            : String(webhookError);
+          saveError instanceof Error ? saveError.message : String(saveError);
         console.error(
-          `❌ Failed to send call ${callData.call.id} to n8n webhook:`,
+          `❌ Unexpected error saving call ${callData.call.id} summary:`,
           {
             callId: callData.call.id,
+            userId,
             customerNumber,
-            customerEmail,
             error: errorMessage,
             summaryLength: summary.length,
             summarySource,
@@ -371,9 +377,10 @@ export async function POST(req: Request) {
         return NextResponse.json(
           {
             success: false,
-            error: "Failed to send summary to n8n",
+            error: "Unexpected error saving summary",
             callId: callData.call.id,
             details: errorMessage,
+            userId,
             customerNumber,
             summaryLength: summary.length,
             summarySource,
