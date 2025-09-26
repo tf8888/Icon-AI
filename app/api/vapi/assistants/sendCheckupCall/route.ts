@@ -150,13 +150,31 @@ export async function POST(req: Request) {
 
     const assistantPayload = {
       ...(body ?? {}),
+      name: "GHL-Business-Assistant",
       model: {
-        ...body.model,
         provider: "openai",
-        model: "gpt-4o", // Changed from gpt-5 to gpt-4 as it's more commonly available
+        model: "gpt-4o",
+        temperature: 0.7,
+        systemPrompt: `You are a professional business assistant specializing in GoHighLevel CRM management. Your job is to provide users with comprehensive updates about their business performance and help them with GoHighLevel tasks. 
+
+        Key responsibilities:
+        - Analyze business metrics and provide actionable insights
+        - Help with lead management and conversion optimization  
+        - Provide updates on sales pipeline and opportunities
+        - Assist with marketing campaign performance
+        - Offer strategic recommendations for business growth
+
+        Always use location ID: ${locationId} for all tool calls. This is a checkup call to update the user on their business progress.
+
+        Be professional, concise, and focus on delivering value through data-driven insights.`,
         toolIds: [tool.id],
-        messages: mergedMessages,
       },
+      voice: {
+        provider: "11labs",
+        voiceId: "paula", // You can change this to a more business-appropriate voice
+      },
+      firstMessage: `Hello! I'm your GoHighLevel business assistant. I'm here to give you a comprehensive update on your business performance and help you optimize your operations. How can I assist you today?`,
+
       // Configure server messages to include end-of-call-report
       serverMessages: ["end-of-call-report"],
       // Configure server URL for webhooks
@@ -164,46 +182,40 @@ export async function POST(req: Request) {
         url: webhookUrl,
         timeoutSeconds: 20,
       },
-      // Enable analysis plan to generate summaries
       analysisPlan: {
-        summaryPlan: {
-          enabled: true,
-          timeoutSeconds: 30,
-          messages: [
-            {
-              role: "system",
-              content:
-                "Please provide a concise summary of this call, including key points discussed, customer concerns, and any follow-up actions needed.",
+        summaryPrompt:
+          "You are an expert note-taker and business analyst. Summarize this GoHighLevel checkup call in 2-3 sentences, focusing on key business insights, customer concerns, and actionable next steps. Include any metrics discussed.",
+        structuredDataPrompt:
+          "You are an expert data extractor. Extract structured data from this call per the schema, focusing on business performance metrics and outcomes.", // Optional
+        structuredDataSchema: {
+          // Optional: Define what to extract
+          type: "object",
+          properties: {
+            callSummary: {
+              type: "string",
+              description: "Brief summary of the call in 2-3 sentences",
             },
-          ],
-        },
-        structuredDataPlan: {
-          enabled: true,
-          timeoutSeconds: 30,
-          schema: {
-            type: "object",
-            properties: {
-              customerConcerns: {
-                type: "array",
-                items: { type: "string" },
-                description: "List of customer concerns or issues discussed",
-              },
-              followUpActions: {
-                type: "array",
-                items: { type: "string" },
-                description: "Required follow-up actions",
-              },
-              callOutcome: {
-                type: "string",
-                description: "Overall outcome of the call",
-              },
-              customerSatisfaction: {
-                type: "string",
-                enum: ["satisfied", "neutral", "dissatisfied", "unknown"],
-                description: "Customer satisfaction level",
-              },
+            customerConcerns: {
+              type: "array",
+              items: { type: "string" },
+              description: "List of customer concerns or issues discussed",
+            },
+            followUpActions: {
+              type: "array",
+              items: { type: "string" },
+              description: "Required follow-up actions",
+            },
+            callOutcome: {
+              type: "string",
+              description: "Overall outcome of the call",
+            },
+            customerSatisfaction: {
+              type: "string",
+              enum: ["satisfied", "neutral", "dissatisfied", "unknown"],
+              description: "Customer satisfaction level",
             },
           },
+          required: ["callSummary", "callOutcome"],
         },
       },
     } as any;

@@ -4,58 +4,6 @@ import { createClient } from "@supabase/supabase-js";
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-interface VapiCallEndedMessage {
-  type: "end-of-call-report";
-  call: {
-    id: string;
-    orgId: string;
-    createdAt: string;
-    updatedAt: string;
-    type: "inboundPhoneCall" | "outboundPhoneCall" | "webCall";
-    phoneCallProvider: string;
-    phoneCallProviderId: string;
-    phoneCallTransport: string;
-    status: "queued" | "ringing" | "in-progress" | "forwarding" | "ended";
-    endedReason?: string;
-    messages?: Array<{
-      role: "assistant" | "user" | "system";
-      message: string;
-      time: number;
-      endTime: number;
-      secondsFromStart: number;
-    }>;
-    transcript?: string;
-    recordingUrl?: string;
-    summary?: string;
-    analysis?: {
-      summary?: string;
-      structuredData?: any;
-      successEvaluation?: any;
-    };
-    artifact?: {
-      messagesOpenAIFormatted?: any[];
-      recordingUrl?: string;
-      videoRecordingUrl?: string;
-      stereoRecordingUrl?: string;
-      transcript?: string;
-    };
-    customer?: {
-      number?: string;
-      extension?: string;
-    };
-    phoneNumber?: {
-      id: string;
-      orgId: string;
-      number: string;
-    };
-    assistantId?: string;
-    squadId?: string;
-    cost?: number;
-    costBreakdown?: any;
-  };
-  timestamp: string;
-}
-
 // Function to get user_id from phone number
 async function getUserIdFromPhone(phoneNumber: string): Promise<string | null> {
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
@@ -122,8 +70,7 @@ async function getUserIdFromPhone(phoneNumber: string): Promise<string | null> {
 // Function to save call summary to checkups table
 async function saveCallSummaryToDatabase(
   userId: string,
-  summary: string,
-  callData: VapiCallEndedMessage
+  callData: any
 ): Promise<{ success: boolean; id?: number; error?: string }> {
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
     return { success: false, error: "Supabase configuration missing" };
@@ -134,35 +81,18 @@ async function saveCallSummaryToDatabase(
 
     console.log(`💾 Saving call summary to database:`, {
       userId,
-      summaryLength: summary.length,
-      transcriptLength: callData.call.transcript?.length || 0,
-      hasTranscript: !!callData.call.transcript,
+      summaryLength: callData.summary.length,
+      transcriptLength: callData.transcript?.length || 0,
+      hasTranscript: !!callData.transcript,
       callId: callData.call.id,
     });
-
-    // Check if there's already a checkup for this call to prevent duplicates
-    const { data: existingCheckup } = await supabase
-      .from("checkups")
-      .select("id")
-      .eq("user_id", userId)
-      .eq("summary", summary)
-      .maybeSingle();
-
-    if (existingCheckup) {
-      console.log(`📋 Call summary already exists in database:`, {
-        existingCheckupId: existingCheckup.id,
-        userId,
-        callId: callData.call.id,
-      });
-      return { success: true, id: existingCheckup.id };
-    }
 
     const { data, error } = await supabase
       .from("checkups")
       .insert({
         user_id: userId,
-        summary: summary,
-        transcript: callData.call.transcript || null,
+        summary: callData.summary,
+        transcript: callData.transcript || null,
         // Let the database handle created_at with its default NOW() value
       })
       .select("id")
@@ -219,7 +149,7 @@ export async function POST(req: Request) {
     console.log("📞 Vapi webhook received:", {
       timestamp: new Date().toISOString(),
       messageType: body.message?.type || "unknown",
-      callId: body.message?.call?.id || "unknown",
+      callId: body.message?.call.id || "unknown",
       bodyKeys: Object.keys(body),
     });
 
@@ -237,17 +167,15 @@ export async function POST(req: Request) {
 
     // Check if this is an end-of-call-report message
     if (body.message?.type === "end-of-call-report") {
-      const callData: VapiCallEndedMessage = body.message;
+      const callData = body.message;
 
       console.log("🔍 Processing end-of-call-report:", {
         callId: callData.call.id,
         status: callData.call.status,
-        endedReason: callData.call.endedReason,
-        hasTranscript: !!callData.call.transcript,
-        hasAnalysis: !!callData.call.analysis,
-        hasSummary: !!callData.call.summary,
-        messagesCount: callData.call.messages?.length || 0,
-        customerNumber: callData.call.customer?.number || "unknown",
+        endedReason: callData.endedReason,
+        hasTranscript: !!callData.transcript,
+        hasAnalysis: !!callData.analysis,
+        hasSummary: !!callData.summary,
       });
 
       // Validate call data
@@ -262,45 +190,8 @@ export async function POST(req: Request) {
         );
       }
 
-      // Extract the summary from the call data with priority order
-      let summary = "";
-      let summarySource = "";
-
-      // Try to get summary from analysis first (highest quality)
-      if (callData.call.analysis?.summary) {
-        summary = callData.call.analysis.summary;
-        summarySource = "analysis";
-      }
-      // Fall back to direct summary field
-      else if (callData.call.summary) {
-        summary = callData.call.summary;
-        summarySource = "direct";
-      }
-      // Fall back to transcript if no summary available
-      else if (callData.call.transcript) {
-        summary = `Call transcript: ${callData.call.transcript}`;
-        summarySource = "transcript";
-      }
-      // Last resort - create summary from messages
-      else if (callData.call.messages && callData.call.messages.length > 0) {
-        const conversationSummary = callData.call.messages
-          .map((msg) => `${msg.role}: ${msg.message}`)
-          .join("\n");
-        summary = `Call summary based on conversation:\n${conversationSummary}`;
-        summarySource = "messages";
-      } else {
-        summary = "Call completed - no detailed summary available";
-        summarySource = "fallback";
-      }
-
-      console.log(`📝 Summary extracted from ${summarySource}:`, {
-        summaryLength: summary.length,
-        summaryPreview:
-          summary.substring(0, 100) + (summary.length > 100 ? "..." : ""),
-      });
-
       // Get customer phone number
-      const customerNumber = callData.call.customer?.number || "Unknown";
+      const customerNumber = callData.call.customer.number || "Unknown";
 
       if (customerNumber === "Unknown") {
         console.warn("⚠️ No customer phone number available in call data");
@@ -334,11 +225,7 @@ export async function POST(req: Request) {
 
       // Save call summary to database
       try {
-        const saveResult = await saveCallSummaryToDatabase(
-          userId,
-          summary,
-          callData
-        );
+        const saveResult = await saveCallSummaryToDatabase(userId, callData);
 
         const processingTime = Date.now() - startTime;
 
@@ -350,10 +237,9 @@ export async function POST(req: Request) {
               userId,
               customerNumber,
               checkupId: saveResult.id,
-              summaryLength: summary.length,
-              summarySource,
-              hasAnalysis: !!callData.call.analysis,
-              hasTranscript: !!callData.call.transcript,
+              summaryLength: callData.summary.length,
+              hasAnalysis: !!callData.analysis,
+              hasTranscript: !!callData.transcript,
               processingTimeMs: processingTime,
             }
           );
@@ -365,8 +251,7 @@ export async function POST(req: Request) {
             userId,
             customerNumber,
             checkupId: saveResult.id,
-            summaryLength: summary.length,
-            summarySource,
+            summaryLength: callData.summary.length,
             processingTimeMs: processingTime,
           });
         } else {
@@ -377,8 +262,7 @@ export async function POST(req: Request) {
               userId,
               customerNumber,
               error: saveResult.error,
-              summaryLength: summary.length,
-              summarySource,
+              summaryLength: callData.summary.length,
               processingTimeMs: processingTime,
             }
           );
@@ -391,8 +275,7 @@ export async function POST(req: Request) {
               details: saveResult.error,
               userId,
               customerNumber,
-              summaryLength: summary.length,
-              summarySource,
+              summaryLength: callData.summary.length,
               processingTimeMs: processingTime,
             },
             { status: 500 }
@@ -409,8 +292,7 @@ export async function POST(req: Request) {
             userId,
             customerNumber,
             error: errorMessage,
-            summaryLength: summary.length,
-            summarySource,
+            summaryLength: callData.summary.length,
             processingTimeMs: processingTime,
           }
         );
@@ -423,8 +305,7 @@ export async function POST(req: Request) {
             details: errorMessage,
             userId,
             customerNumber,
-            summaryLength: summary.length,
-            summarySource,
+            summaryLength: callData.summary.length,
             processingTimeMs: processingTime,
           },
           { status: 500 }
