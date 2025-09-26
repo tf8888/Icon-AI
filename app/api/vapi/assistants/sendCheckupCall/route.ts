@@ -1,10 +1,19 @@
 import { NextResponse } from "next/server";
 import { VapiClient } from "@vapi-ai/server-sdk";
-import { createAssistantWithTools } from "@/lib/vapiAssistant";
-import supabase from "@/lib/supabaseClient";
+import { auth } from "@clerk/nextjs/server";
+import { createClient } from "@supabase/supabase-js";
+
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));
+
+  // Authenticate user with Clerk
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   const token = process.env.VAPI_API_KEY;
   if (!token) {
@@ -14,7 +23,15 @@ export async function POST(req: Request) {
     );
   }
 
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+    return NextResponse.json(
+      { error: "Supabase configuration missing" },
+      { status: 500 }
+    );
+  }
+
   const client = new VapiClient({ token });
+  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
   // Get user credentials from the request body or database
   let bearer = body.ghl_pit_token;
@@ -23,14 +40,15 @@ export async function POST(req: Request) {
   let customerNumber = body.vapi_phone_number;
 
   // If user_id is provided but no credentials, fetch from database
-  if (body.user_id && (!bearer || !locationId || !phoneNumberId)) {
+  // Use the authenticated userId from Clerk instead of trusting the request body
+  if (!bearer || !locationId || !phoneNumberId) {
     try {
       const { data: profile, error } = await supabase
         .from("profile")
         .select(
           "ghl_pit_token, ghl_location_id, vapi_phone_number_id, vapi_phone_number, phone_number"
         )
-        .eq("user_id", body.user_id)
+        .eq("user_id", userId) // Use authenticated userId from Clerk
         .single();
 
       if (error) {
@@ -82,39 +100,115 @@ export async function POST(req: Request) {
     );
   }
 
+  const serverUrl = "https://services.leadconnectorhq.com/mcp/";
+
   try {
+    const toolPayload: any = {
+      type: "mcp",
+      server: {
+        url: serverUrl,
+        headers: {
+          Authorization: `Bearer ${bearer}`,
+          locationId: body.locationId,
+        },
+      },
+      metadata: {
+        protocol: "shttp",
+      },
+    };
+    const tool = await client.tools.create(toolPayload);
+    console.log("tool created: ", tool);
+
+    const instructions:
+      | string
+      | undefined = `Your job is to provide the user with a summary of their business and help them with their GoHighLevel tasks. Their location id is ${locationId} use this for all tool calls. This is a ${
+      body.callType || "checkup"
+    } call to update them on their business progress.`;
     const messagesFromBody = Array.isArray(body?.model?.messages)
       ? body.model.messages
       : [];
+    const mergedMessages = instructions
+      ? [
+          { role: "system", content: instructions },
+          {
+            role: "user",
+            content:
+              "Give me an update based on this snapshot: " +
+              JSON.stringify(body),
+          },
+          ...messagesFromBody,
+        ]
+      : messagesFromBody;
 
-    // Whitelist assistant overrides to avoid invalid props
-    const assistantOverrides: any = {};
-    if (body && typeof body === "object") {
-      if (typeof body.name === "string") assistantOverrides.name = body.name;
-      if (typeof body.recordingEnabled === "boolean") assistantOverrides.recordingEnabled = body.recordingEnabled;
-      if (body.voice && typeof body.voice === "object") assistantOverrides.voice = body.voice;
-      if (body.transcriber && typeof body.transcriber === "object") assistantOverrides.transcriber = body.transcriber;
-      if (body.toolDefaults && typeof body.toolDefaults === "object") assistantOverrides.toolDefaults = body.toolDefaults;
-      if (body.variableValues && typeof body.variableValues === "object") assistantOverrides.variableValues = body.variableValues;
-      if (body.model && typeof body.model === "object") assistantOverrides.model = body.model;
-    }
+    // Get the base URL for our webhook endpoint
+    const baseUrl =
+      process.env.NEXTAUTH_URL ||
+      process.env.VERCEL_URL ||
+      "http://localhost:3000";
+    const webhookUrl = `${baseUrl}/api/vapi/webhooks`;
 
-    const { assistant } = await createAssistantWithTools({
-      client,
-      bearer,
-      locationId,
-      callType: body.callType || "checkup",
-      modelMessages: [
-        {
-          role: "user",
-          content:
-            "Give me an update based on this snapshot: " +
-            JSON.stringify(body),
+    const assistantPayload = {
+      ...(body ?? {}),
+      model: {
+        ...body.model,
+        provider: "openai",
+        model: "gpt-4", // Changed from gpt-5 to gpt-4 as it's more commonly available
+        toolIds: [tool.id],
+        messages: mergedMessages,
+      },
+      // Configure server messages to include end-of-call-report
+      serverMessages: ["end-of-call-report"],
+      // Configure server URL for webhooks
+      server: {
+        url: webhookUrl,
+        timeoutSeconds: 20,
+      },
+      // Enable analysis plan to generate summaries
+      analysisPlan: {
+        summaryPlan: {
+          enabled: true,
+          timeoutSeconds: 30,
+          messages: [
+            {
+              role: "system",
+              content:
+                "Please provide a concise summary of this call, including key points discussed, customer concerns, and any follow-up actions needed.",
+            },
+          ],
         },
-        ...messagesFromBody,
-      ],
-      assistantOverrides,
-    });
+        structuredDataPlan: {
+          enabled: true,
+          timeoutSeconds: 30,
+          schema: {
+            type: "object",
+            properties: {
+              customerConcerns: {
+                type: "array",
+                items: { type: "string" },
+                description: "List of customer concerns or issues discussed",
+              },
+              followUpActions: {
+                type: "array",
+                items: { type: "string" },
+                description: "Required follow-up actions",
+              },
+              callOutcome: {
+                type: "string",
+                description: "Overall outcome of the call",
+              },
+              customerSatisfaction: {
+                type: "string",
+                enum: ["satisfied", "neutral", "dissatisfied", "unknown"],
+                description: "Customer satisfaction level",
+              },
+            },
+          },
+        },
+      },
+    } as any;
+
+    console.log("assistant payload: ", assistantPayload);
+    const assistant = await client.assistants.create(assistantPayload);
     console.log("assistant created: ", assistant);
 
     // Extract phone number from SIP URI if needed
@@ -127,13 +221,15 @@ export async function POST(req: Request) {
 
     const call = await client.calls.create({
       assistantId: assistant.id,
-      phoneNumberId: phoneNumberId,
+      phoneNumberId: process.env.VAPI_PHONE_NUMBER_ID,
       customer: { number: callToNumber },
     });
     console.log("call created: ", call);
 
     return NextResponse.json(assistant);
   } catch (err: any) {
+    console.error("Failed to create assistant: ", err);
+
     const status = err?.statusCode || 500;
     const message = err?.message || "Failed to create assistant";
     const details = err?.body || err?.response?.data || undefined;

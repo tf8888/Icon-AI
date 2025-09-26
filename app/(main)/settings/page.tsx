@@ -27,7 +27,9 @@ export default function SettingsPage() {
   const [originalLocationId, setOriginalLocationId] = useState<string | null>(
     null
   );
+  const [originalPhoneNumber, setOriginalPhoneNumber] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [isPhoneEditing, setIsPhoneEditing] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [testResponse, setTestResponse] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -41,10 +43,14 @@ export default function SettingsPage() {
     enableEvening: false,
   });
 
+  const [phoneNumber, setPhoneNumber] = useState<string>("");
+  const [email, setEmail] = useState<string>("");
   // VAPI phone number state
   const [vapiPhoneNumber, setVapiPhoneNumber] = useState<string>("");
   const [loadingPhoneNumber, setLoadingPhoneNumber] = useState(false);
   const [phoneNumberError, setPhoneNumberError] = useState<string | null>(null);
+  const [isSendingCall, setIsSendingCall] = useState(false);
+  const [sendCallError, setSendCallError] = useState<string | null>(null);
 
   const handleSaveCheckupSettings = async () => {
     setIsCheckupCallsSaving(true);
@@ -94,6 +100,7 @@ export default function SettingsPage() {
         ghl_pit_token: pitToken || null,
         ghl_location_id: locationId || null,
         phone_number: data.location.phone,
+        email: data.location.email
       };
 
       const { error } = await supabase
@@ -122,19 +129,56 @@ export default function SettingsPage() {
     setIsEditing(false);
   };
 
+  const handleCancelPhoneEdit = () => {
+    setPhoneNumber(originalPhoneNumber ?? "");
+    setIsPhoneEditing(false);
+  };
+
+  const handleSavePhoneNumber = async () => {
+    setIsSaving(true);
+    try {
+      const userId = user?.id;
+      if (!userId) {
+        console.error("No authenticated user found; unable to save to profile");
+        setIsSaving(false);
+        return;
+      }
+
+      const { error } = await supabase
+        .from("profile")
+        .update({ phone_number: phoneNumber || null })
+        .eq("user_id", userId);
+
+      if (error) {
+        console.error("Failed to save phone number to profile:", error);
+      } else {
+        console.log("Saved phone number to profile table");
+        setOriginalPhoneNumber(phoneNumber || null);
+        setIsPhoneEditing(false);
+      }
+    } catch (err) {
+      console.error("Failed to save phone number", err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   // Load phone number from profile on mount
   useEffect(() => {
     const loadPhoneNumber = async () => {
       if (!user?.id) return;
       const { data } = await supabase
         .from("profile")
-        .select("vapi_phone_number, vapi_phone_number_id")
+        .select("vapi_phone_number, vapi_phone_number_id, email")
         .eq("user_id", user.id)
         .single();
-      if (data && data.vapi_phone_number) {
-        setVapiPhoneNumber(data.vapi_phone_number);
-      } else {
-        setVapiPhoneNumber("");
+      if (data) {
+        setEmail(data.email);
+        if (data.vapi_phone_number) {
+          setVapiPhoneNumber(data.vapi_phone_number);
+        } else {
+          setVapiPhoneNumber("");
+        }
       }
     };
     loadPhoneNumber();
@@ -152,7 +196,7 @@ export default function SettingsPage() {
 
         const { data, error } = await supabase
           .from("profile")
-          .select("ghl_pit_token,ghl_location_id, checkupCalls")
+          .select("ghl_pit_token,ghl_location_id, checkupCalls, phone_number")
           .eq("user_id", userId)
           .single();
 
@@ -167,8 +211,10 @@ export default function SettingsPage() {
         if (data) {
           setOriginalPitToken(data.ghl_pit_token ?? null);
           setOriginalLocationId(data.ghl_location_id ?? null);
+          setOriginalPhoneNumber(data.phone_number ?? null);
           setPitToken(data.ghl_pit_token ?? "");
           setLocationId(data.ghl_location_id ?? "");
+          setPhoneNumber(data.phone_number ?? "");
           setCheckupCalls(
             data.checkupCalls ?? {
               enabled: false,
@@ -219,37 +265,65 @@ export default function SettingsPage() {
   };
 
   // Handler to create a new phone number for the user
-  const handleCreatePhoneNumber = async () => {
+  // const handleCreatePhoneNumber = async () => {
+  //   if (!user?.id) return;
+  //   setLoadingPhoneNumber(true);
+  //   setPhoneNumberError(null);
+  //   try {
+  //     const res = await fetch("/api/vapi/phone-numbers", {
+  //       method: "POST",
+  //       headers: { "Content-Type": "application/json" },
+  //       body: JSON.stringify({ user_id: user.id }),
+  //     });
+  //     const result = await res.json();
+  //     const newNumber = result?.phoneNumber;
+  //     const newNumberId = result?.phoneNumberId;
+
+  //     if (newNumber) {
+  //       setVapiPhoneNumber(newNumber);
+  //       // Save to DB
+  //       await supabase
+  //         .from("profile")
+  //         .update({
+  //           vapi_phone_number: newNumber,
+  //           vapi_phone_number_id: newNumberId,
+  //         })
+  //         .eq("user_id", user.id);
+  //     } else {
+  //       setPhoneNumberError("Failed to create phone number");
+  //     }
+  //   } catch (err: any) {
+  //     setPhoneNumberError(err?.message || "Failed to create phone number");
+  //   } finally {
+  //     setLoadingPhoneNumber(false);
+  //   }
+  // };
+
+  // Handler to send checkup call
+  const handleSendCall = async () => {
     if (!user?.id) return;
-    setLoadingPhoneNumber(true);
-    setPhoneNumberError(null);
+    setIsSendingCall(true);
+    setSendCallError(null);
     try {
-      const res = await fetch("/api/vapi/phone-numbers", {
+      const res = await fetch("/api/vapi/assistants/sendCheckupCall", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: user.id }),
+        body: JSON.stringify({}), // Empty body - auth handled by Clerk on server side
       });
-      const result = await res.json();
-      const newNumber = result?.phoneNumber;
-      const newNumberId = result?.phoneNumberId;
 
-      if (newNumber) {
-        setVapiPhoneNumber(newNumber);
-        // Save to DB
-        await supabase
-          .from("profile")
-          .update({
-            vapi_phone_number: newNumber,
-            vapi_phone_number_id: newNumberId,
-          })
-          .eq("user_id", user.id);
-      } else {
-        setPhoneNumberError("Failed to create phone number");
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Failed to send call");
       }
+
+      const result = await res.json();
+      console.log("Checkup call sent successfully:", result);
+      // You could add a success toast here if needed
     } catch (err: any) {
-      setPhoneNumberError(err?.message || "Failed to create phone number");
+      setSendCallError(err?.message || "Failed to send call");
+      console.error("Error sending checkup call:", err);
     } finally {
-      setLoadingPhoneNumber(false);
+      setIsSendingCall(false);
     }
   };
 
@@ -384,43 +458,62 @@ export default function SettingsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>VAPI Phone Number</CardTitle>
+            <CardTitle>Outbound Phone Number</CardTitle>
             <CardDescription>
-              {vapiPhoneNumber
-                ? `Your VAPI phone number: ${vapiPhoneNumber}`
-                : "You do not have a VAPI phone number yet."}
+              Phone number used for outbound calls
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              {vapiPhoneNumber ? (
-                <>
-                  <div className="flex items-center justify-between border rounded px-3 py-2">
-                    <span className="text-sm">{vapiPhoneNumber}</span>
-                    {/* <Button onClick={handleCreatePhoneNumber} disabled={loadingPhoneNumber}>
-                                            {loadingPhoneNumber ? "Creating..." : "Create New Phone Number"}
-                                        </Button> */}
-                  </div>
-                </>
+
+              {!isPhoneEditing && originalPhoneNumber ? (
+                <div className="flex items-center justify-between border rounded px-3 py-2 mt-1">
+                  <span className="text-sm">{originalPhoneNumber}</span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setIsPhoneEditing(true)}
+                  >
+                    Edit
+                  </Button>
+                </div>
               ) : (
-                <Button
-                  onClick={handleCreatePhoneNumber}
-                  disabled={loadingPhoneNumber}
-                >
-                  {loadingPhoneNumber ? "Creating..." : "Create Phone Number"}
-                </Button>
+                <div className="mt-1">
+                  <Input
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    placeholder="Enter outbound phone number"
+                  />
+                  <div className="flex space-x-2 mt-2">
+                    <Button
+                      onClick={handleSavePhoneNumber}
+                      size="sm"
+                      disabled={isSaving}
+                    >
+                      {isSaving ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="h-4 w-4 mr-1" />
+                          Save
+                        </>
+                      )}
+                    </Button>
+                    {isPhoneEditing && (
+                      <Button
+                        variant="ghost"
+                        onClick={handleCancelPhoneEdit}
+                        size="sm"
+                      >
+                        Cancel
+                      </Button>
+                    )}
+                  </div>
+                </div>
               )}
-              {phoneNumberError && (
-                <p className="text-xs text-red-500">{phoneNumberError}</p>
-              )}
-              <div>
-                <span className="text-sm">Outbound Phone Number</span>
-                <Input
-                  value={"outboundPhoneNumber"}
-                  onChange={(e) => {}}
-                  placeholder="Enter outbound phone number"
-                />
-              </div>
             </div>
           </CardContent>
         </Card>
@@ -433,11 +526,18 @@ export default function SettingsPage() {
               {/* send call button */}
               <Button
                 variant="outline"
-                onClick={() => {}}
-                disabled={!vapiPhoneNumber}
+                onClick={handleSendCall}
+                disabled={!vapiPhoneNumber || isSendingCall}
                 className="ml-auto"
               >
-                Send Call
+                {isSendingCall ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                    Sending...
+                  </>
+                ) : (
+                  "Send Call"
+                )}
               </Button>
             </CardTitle>
             <CardDescription>
@@ -446,6 +546,13 @@ export default function SettingsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
+            {/* Error display for send call */}
+            {sendCallError && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-sm text-red-600">{sendCallError}</p>
+              </div>
+            )}
+
             {/* Enable/Disable Toggle */}
             <div className="flex items-center justify-between p-4 border rounded-lg">
               <div>
