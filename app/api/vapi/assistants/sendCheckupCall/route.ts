@@ -32,7 +32,7 @@ export async function POST(req: Request) {
 
   const client = new VapiClient({ token });
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-  
+
   // Get user credentials from the request body or database
   let bearer = body.ghl_pit_token;
   let locationId = body.ghl_location_id || body.locationId;
@@ -146,7 +146,7 @@ export async function POST(req: Request) {
       process.env.NEXTAUTH_URL ||
       process.env.VERCEL_URL ||
       "http://localhost:3000";
-    const webhookUrl = `${baseUrl}/api/vapi/webhooks`;
+    const webhookUrl = `https://${baseUrl}/api/vapi/webhooks`;
 
     const assistantPayload = {
       ...(body ?? {}),
