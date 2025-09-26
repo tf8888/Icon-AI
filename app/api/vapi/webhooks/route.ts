@@ -135,21 +135,62 @@ async function saveCallSummaryToDatabase(
     console.log(`💾 Saving call summary to database:`, {
       userId,
       summaryLength: summary.length,
+      transcriptLength: callData.call.transcript?.length || 0,
+      hasTranscript: !!callData.call.transcript,
       callId: callData.call.id,
     });
+
+    // Check if there's already a checkup for this call to prevent duplicates
+    const { data: existingCheckup } = await supabase
+      .from("checkups")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("summary", summary)
+      .maybeSingle();
+
+    if (existingCheckup) {
+      console.log(`📋 Call summary already exists in database:`, {
+        existingCheckupId: existingCheckup.id,
+        userId,
+        callId: callData.call.id,
+      });
+      return { success: true, id: existingCheckup.id };
+    }
 
     const { data, error } = await supabase
       .from("checkups")
       .insert({
         user_id: userId,
         summary: summary,
-        created_at: new Date().toISOString(),
+        transcript: callData.call.transcript || null,
+        // Let the database handle created_at with its default NOW() value
       })
       .select("id")
       .single();
 
     if (error) {
       console.error("Error saving to checkups table:", error);
+
+      // If it's a duplicate key error, try to find the existing record
+      if (error.code === "23505") {
+        console.log("🔍 Duplicate key error, searching for existing record...");
+        const { data: existingRecord } = await supabase
+          .from("checkups")
+          .select("id")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (existingRecord) {
+          console.log(
+            "✅ Found existing record, using that:",
+            existingRecord.id
+          );
+          return { success: true, id: existingRecord.id };
+        }
+      }
+
       return { success: false, error: error.message };
     }
 
