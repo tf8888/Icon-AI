@@ -12,9 +12,9 @@ export default function ChatPage() {
 
     return (
         <>
-            <div className="flex-1 p-6 overflow-auto">
-                <Card className="h-[600px] flex flex-col">
-                    <CardHeader className="border-b">
+            <div className="flex-1 flex flex-col h-full">
+                <Card className="flex-1 flex flex-col m-2 md:m-6 min-h-0">
+                    <CardHeader className="border-b flex-shrink-0">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center space-x-2">
                                 <Bot className="h-5 w-5 text-primary" />
@@ -27,12 +27,12 @@ export default function ChatPage() {
                                 className="flex items-center space-x-2"
                             >
                                 <Mic className="h-4 w-4" />
-                                <span>Switch to Voice</span>
+                                <span className="hidden sm:inline">Switch to Voice</span>
                             </Button>
                         </div>
                         <CardDescription>Chat with AI about your business, get insights, and manage your CRM</CardDescription>
                     </CardHeader>
-                    <div className="flex-1 flex flex-col">
+                    <div className="flex-1 flex flex-col min-h-0">
                         <ChatInterface />
                     </div>
                 </Card>

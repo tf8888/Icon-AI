@@ -3,6 +3,7 @@
 import React from "react";
 import { useUser, UserButton } from "@clerk/nextjs";
 import { Button } from "./ui/button";
+import { Menu } from "lucide-react";
 
 export function Header() {
   const { isLoaded, user } = useUser();
@@ -10,18 +11,14 @@ export function Header() {
   if (!isLoaded) return null;
 
   return (
-    <header className="w-full bg-card border-b  px-4 py-2 flex items-center justify-end">
+    <header className="w-full bg-card border-b px-4 py-2 flex items-center justify-between">
+      <div className="flex items-center">
+        <h1 className="text-lg font-bold md:hidden">Stratos AI</h1>
+      </div>
       <div className="flex items-center gap-3">
         {user ? (
           <>
-            {/* <div className="text-sm  text-right">
-                            <div>{user.firstName || user.fullName || user.primaryEmailAddress?.emailAddress}</div>
-                            <div className="text-xs ">{user.emailAddresses?.[0]?.emailAddress}</div>
-                        </div> */}
             <UserButton />
-            {/* <SignOutButton>
-                            <button className="px-3 py-1 text-sm rounded bg-red-50 text-red-600">Sign out</button>
-                        </SignOutButton> */}
           </>
         ) : (
           <div className="text-sm text-gray-600">Not signed in</div>

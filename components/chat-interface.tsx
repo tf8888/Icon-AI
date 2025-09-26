@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send, Bot, User, Loader2 } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 interface Message {
   id: string;
@@ -145,10 +147,10 @@ export function ChatInterface() {
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full min-h-0">
       {/* Chat Messages */}
-      <ScrollArea ref={scrollAreaRef} className="flex-1 p-4">
-        <div className="space-y-4">
+      <ScrollArea ref={scrollAreaRef} className="flex-1 min-h-0">
+        <div className="p-4 space-y-4">
           {messages.map((message) => (
             <div
               key={message.id}
@@ -158,7 +160,7 @@ export function ChatInterface() {
                   : ""
               }`}
             >
-              <Avatar className="h-8 w-8">
+              <Avatar className="h-8 w-8 flex-shrink-0">
                 <AvatarFallback
                   className={
                     message.role === "user"
@@ -180,7 +182,27 @@ export function ChatInterface() {
                     : "bg-muted"
                 }`}
               >
-                <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                {message.role === "assistant" ? (
+                  <div className="text-sm prose prose-sm max-w-none dark:prose-invert">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                        ul: ({ children }) => <ul className="mb-2 last:mb-0 pl-4 list-disc">{children}</ul>,
+                        ol: ({ children }) => <ol className="mb-2 last:mb-0 pl-4 list-decimal">{children}</ol>,
+                        li: ({ children }) => <li className="mb-1">{children}</li>,
+                        strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                        em: ({ children }) => <em className="italic">{children}</em>,
+                        code: ({ children }) => <code className="bg-muted px-1 py-0.5 rounded text-xs">{children}</code>,
+                        pre: ({ children }) => <pre className="bg-muted p-2 rounded text-xs overflow-x-auto">{children}</pre>,
+                      }}
+                    >
+                      {message.content}
+                    </ReactMarkdown>
+                  </div>
+                ) : (
+                  <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                )}
                 <p className={`text-xs mt-1 opacity-70`}>
                   {formatTime(message.timestamp)}
                 </p>
@@ -189,7 +211,7 @@ export function ChatInterface() {
           ))}
           {isLoading && (
             <div className="flex items-start space-x-3">
-              <Avatar className="h-8 w-8">
+              <Avatar className="h-8 w-8 flex-shrink-0">
                 <AvatarFallback className="bg-muted">
                   <Bot className="h-4 w-4" />
                 </AvatarFallback>
@@ -208,7 +230,7 @@ export function ChatInterface() {
       </ScrollArea>
 
       {/* Chat Input */}
-      <div className="border-t p-4">
+      <div className="border-t p-4 flex-shrink-0">
         <form onSubmit={handleSubmit} className="flex space-x-2">
           <Input
             ref={inputRef}

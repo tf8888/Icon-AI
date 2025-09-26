@@ -88,8 +88,9 @@ export function AppSidebar() {
 
   return (
     <aside
-      className={`${isSidebarCollapsed ? "w-16" : "w-64 "
-        } border-r bg-card transition-all duration-300 flex-col hidden md:flex`}
+      className={`${
+        isSidebarCollapsed ? "w-16" : "w-64 "
+      } border-r bg-card transition-all duration-300 flex-col hidden md:flex`}
     >
       {/* Sidebar Header */}
       <div className="p-4 border-b">
@@ -117,10 +118,11 @@ export function AppSidebar() {
       {/* Navigation Items */}
       <nav className="flex-1 p-2 flex flex-col justify-between">
         <div
-          className={`${isSidebarCollapsed
+          className={`${
+            isSidebarCollapsed
               ? "flex flex-col items-center space-y-1"
               : "space-y-1"
-            }`}
+          }`}
         >
           {navigationItems.map((item) => {
             const Icon = item.icon;
@@ -131,15 +133,17 @@ export function AppSidebar() {
                 asChild
                 key={item.id}
                 variant={isActive ? "default" : "ghost"}
-                className={`${isSidebarCollapsed
+                className={`${
+                  isSidebarCollapsed
                     ? "h-12 w-12 p-0 justify-center"
                     : "w-full justify-start px-3"
-                  }`}
+                }`}
               >
                 <Link href={item.href} className="flex items-center w-full">
                   <Icon
-                    className={`h-4 w-4 ${isSidebarCollapsed ? "" : "mr-2"
-                      } flex-shrink-0`}
+                    className={`h-4 w-4 ${
+                      isSidebarCollapsed ? "" : "mr-2"
+                    } flex-shrink-0`}
                   />
                   {!isSidebarCollapsed && <span>{item.label}</span>}
                 </Link>
@@ -192,18 +196,20 @@ export function AppSidebar() {
       {/* Floating Chat Button */}
       <div className="p-3 mx-auto mb-2 w-full">
         <Button
-          onClick={() => setIsChatModalOpen(true)}
-          className={`${isSidebarCollapsed
+          onClick={() => router.push("/chat")}
+          className={`${
+            isSidebarCollapsed
               ? "h-10 w-10 p-0 justify-center mx-auto rounded-full"
               : "w-full justify-center px-3 h-12 rounded-lg"
-            } bg-primary hover:bg-primary/90 text-white shadow-lg transition-all duration-200 hover:shadow-xl`}
+          } bg-primary hover:bg-primary/90 text-white shadow-lg transition-all duration-200 hover:shadow-xl`}
         >
           <Bot
-            className={`h-5 w-5 ${isSidebarCollapsed ? "" : "mr-0"
-              } flex-shrink-0`}
+            className={`h-5 w-5 ${
+              isSidebarCollapsed ? "" : "mr-0"
+            } flex-shrink-0`}
           />
           {!isSidebarCollapsed && (
-            <span className="font-medium">Launch Stratos AI</span>
+            <span className="font-medium">Chat with Agent Stratos</span>
           )}
         </Button>
       </div>
@@ -223,10 +229,11 @@ export function AppSidebar() {
           variant="ghost"
           size="sm"
           onClick={handleThemeChange}
-          className={`${isSidebarCollapsed
+          className={`${
+            isSidebarCollapsed
               ? "h-12 w-12 p-0 justify-center mx-auto"
               : "w-full px-3 justify-start"
-            }`}
+          }`}
         >
           {getThemeIcon()}
           {!isSidebarCollapsed && (
@@ -235,20 +242,22 @@ export function AppSidebar() {
             </span>
           )}
         </Button>
-        
+
         {/* Settings Button */}
         <Button
           onClick={() => router.push("/settings")}
           size="sm"
           variant="ghost"
-          className={`${isSidebarCollapsed
+          className={`${
+            isSidebarCollapsed
               ? "h-12 w-12 p-0 justify-center mx-auto"
               : "w-full  px-3 justify-start"
-            }`}
+          }`}
         >
           <Settings
-            className={`h-4 w-4 ${isSidebarCollapsed ? "" : "mr-2"
-              } flex-shrink-0`}
+            className={`h-4 w-4 ${
+              isSidebarCollapsed ? "" : "mr-2"
+            } flex-shrink-0`}
           />
           {!isSidebarCollapsed && "Manage Settings"}
         </Button>

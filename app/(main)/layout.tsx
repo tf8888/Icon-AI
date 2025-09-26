@@ -25,9 +25,9 @@ export default function Layout({
         <ProfileProvider>
             <div className="min-h-screen bg-background flex">
                 <AppSidebar />
-                <div className="flex-1 flex flex-col h-screen overflow-auto">
+                <div className="flex-1 flex flex-col h-screen min-w-0">
                     <Header />
-                    <main className="flex-1 flex flex-col">{children}</main>
+                    <main className="flex-1 flex flex-col min-h-0 overflow-hidden">{children}</main>
                 </div>
             </div>
         </ProfileProvider>
