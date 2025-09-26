@@ -140,6 +140,13 @@ export async function POST(req: Request) {
         ]
       : messagesFromBody;
 
+    // Get the base URL for our webhook endpoint
+    const baseUrl =
+      process.env.NEXTAUTH_URL ||
+      process.env.VERCEL_URL ||
+      "http://localhost:3000";
+    const webhookUrl = `${baseUrl}/api/vapi/webhooks`;
+
     const assistantPayload = {
       ...(body ?? {}),
       model: {
@@ -148,6 +155,55 @@ export async function POST(req: Request) {
         model: "gpt-4", // Changed from gpt-5 to gpt-4 as it's more commonly available
         toolIds: [tool.id],
         messages: mergedMessages,
+      },
+      // Configure server messages to include end-of-call-report
+      serverMessages: ["end-of-call-report"],
+      // Configure server URL for webhooks
+      server: {
+        url: webhookUrl,
+        timeoutSeconds: 20,
+      },
+      // Enable analysis plan to generate summaries
+      analysisPlan: {
+        summaryPlan: {
+          enabled: true,
+          timeoutSeconds: 30,
+          messages: [
+            {
+              role: "system",
+              content:
+                "Please provide a concise summary of this call, including key points discussed, customer concerns, and any follow-up actions needed.",
+            },
+          ],
+        },
+        structuredDataPlan: {
+          enabled: true,
+          timeoutSeconds: 30,
+          schema: {
+            type: "object",
+            properties: {
+              customerConcerns: {
+                type: "array",
+                items: { type: "string" },
+                description: "List of customer concerns or issues discussed",
+              },
+              followUpActions: {
+                type: "array",
+                items: { type: "string" },
+                description: "Required follow-up actions",
+              },
+              callOutcome: {
+                type: "string",
+                description: "Overall outcome of the call",
+              },
+              customerSatisfaction: {
+                type: "string",
+                enum: ["satisfied", "neutral", "dissatisfied", "unknown"],
+                description: "Customer satisfaction level",
+              },
+            },
+          },
+        },
       },
     } as any;
 

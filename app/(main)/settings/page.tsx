@@ -265,39 +265,39 @@ export default function SettingsPage() {
   };
 
   // Handler to create a new phone number for the user
-  const handleCreatePhoneNumber = async () => {
-    if (!user?.id) return;
-    setLoadingPhoneNumber(true);
-    setPhoneNumberError(null);
-    try {
-      const res = await fetch("/api/vapi/phone-numbers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: user.id }),
-      });
-      const result = await res.json();
-      const newNumber = result?.phoneNumber;
-      const newNumberId = result?.phoneNumberId;
+  // const handleCreatePhoneNumber = async () => {
+  //   if (!user?.id) return;
+  //   setLoadingPhoneNumber(true);
+  //   setPhoneNumberError(null);
+  //   try {
+  //     const res = await fetch("/api/vapi/phone-numbers", {
+  //       method: "POST",
+  //       headers: { "Content-Type": "application/json" },
+  //       body: JSON.stringify({ user_id: user.id }),
+  //     });
+  //     const result = await res.json();
+  //     const newNumber = result?.phoneNumber;
+  //     const newNumberId = result?.phoneNumberId;
 
-      if (newNumber) {
-        setVapiPhoneNumber(newNumber);
-        // Save to DB
-        await supabase
-          .from("profile")
-          .update({
-            vapi_phone_number: newNumber,
-            vapi_phone_number_id: newNumberId,
-          })
-          .eq("user_id", user.id);
-      } else {
-        setPhoneNumberError("Failed to create phone number");
-      }
-    } catch (err: any) {
-      setPhoneNumberError(err?.message || "Failed to create phone number");
-    } finally {
-      setLoadingPhoneNumber(false);
-    }
-  };
+  //     if (newNumber) {
+  //       setVapiPhoneNumber(newNumber);
+  //       // Save to DB
+  //       await supabase
+  //         .from("profile")
+  //         .update({
+  //           vapi_phone_number: newNumber,
+  //           vapi_phone_number_id: newNumberId,
+  //         })
+  //         .eq("user_id", user.id);
+  //     } else {
+  //       setPhoneNumberError("Failed to create phone number");
+  //     }
+  //   } catch (err: any) {
+  //     setPhoneNumberError(err?.message || "Failed to create phone number");
+  //   } finally {
+  //     setLoadingPhoneNumber(false);
+  //   }
+  // };
 
   // Handler to send checkup call
   const handleSendCall = async () => {
@@ -458,89 +458,62 @@ export default function SettingsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>VAPI Phone Number</CardTitle>
+            <CardTitle>Outbound Phone Number</CardTitle>
             <CardDescription>
-              {vapiPhoneNumber
-                ? `Your VAPI phone number: ${vapiPhoneNumber}`
-                : "You do not have a VAPI phone number yet."}
+              Phone number used for outbound calls
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              {vapiPhoneNumber ? (
-                <>
-                  <div className="flex items-center justify-between border rounded px-3 py-2">
-                    <span className="text-sm">{vapiPhoneNumber}</span>
-                    {/* <Button onClick={handleCreatePhoneNumber} disabled={loadingPhoneNumber}>
-                                            {loadingPhoneNumber ? "Creating..." : "Create New Phone Number"}
-                                        </Button> */}
-                  </div>
-                </>
+
+              {!isPhoneEditing && originalPhoneNumber ? (
+                <div className="flex items-center justify-between border rounded px-3 py-2 mt-1">
+                  <span className="text-sm">{originalPhoneNumber}</span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setIsPhoneEditing(true)}
+                  >
+                    Edit
+                  </Button>
+                </div>
               ) : (
-                <Button
-                  onClick={handleCreatePhoneNumber}
-                  disabled={loadingPhoneNumber}
-                >
-                  {loadingPhoneNumber ? "Creating..." : "Create Phone Number"}
-                </Button>
-              )}
-              {phoneNumberError && (
-                <p className="text-xs text-red-500">{phoneNumberError}</p>
-              )}
-              <div>
-                <span className="text-sm font-medium">Outbound Phone Number</span>
-                {!isPhoneEditing && originalPhoneNumber ? (
-                  <div className="flex items-center justify-between border rounded px-3 py-2 mt-1">
-                    <span className="text-sm">{originalPhoneNumber}</span>
+                <div className="mt-1">
+                  <Input
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    placeholder="Enter outbound phone number"
+                  />
+                  <div className="flex space-x-2 mt-2">
                     <Button
+                      onClick={handleSavePhoneNumber}
                       size="sm"
-                      variant="outline"
-                      onClick={() => setIsPhoneEditing(true)}
+                      disabled={isSaving}
                     >
-                      Edit
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="mt-1">
-                    <Input
-                      value={phoneNumber}
-                      onChange={(e) => setPhoneNumber(e.target.value)}
-                      placeholder="Enter outbound phone number"
-                    />
-                    <div className="flex space-x-2 mt-2">
-                      <Button
-                        onClick={handleSavePhoneNumber}
-                        size="sm"
-                        disabled={isSaving}
-                      >
-                        {isSaving ? (
-                          <>
-                            <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                            Saving...
-                          </>
-                        ) : (
-                          <>
-                            <Save className="h-4 w-4 mr-1" />
-                            Save
-                          </>
-                        )}
-                      </Button>
-                      {isPhoneEditing && (
-                        <Button
-                          variant="ghost"
-                          onClick={handleCancelPhoneEdit}
-                          size="sm"
-                        >
-                          Cancel
-                        </Button>
+                      {isSaving ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="h-4 w-4 mr-1" />
+                          Save
+                        </>
                       )}
-                    </div>
+                    </Button>
+                    {isPhoneEditing && (
+                      <Button
+                        variant="ghost"
+                        onClick={handleCancelPhoneEdit}
+                        size="sm"
+                      >
+                        Cancel
+                      </Button>
+                    )}
                   </div>
-                )}
-                <p className="text-xs text-muted-foreground mt-1">
-                  Phone number used for outbound calls
-                </p>
-              </div>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
