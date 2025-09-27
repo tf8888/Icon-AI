@@ -146,7 +146,7 @@ export async function POST(req: Request) {
       process.env.NEXTAUTH_URL ||
       process.env.VERCEL_URL ||
       "http://localhost:3000";
-    const webhookUrl = `${baseUrl}/api/vapi/webhooks`;
+    const webhookUrl = `https://${baseUrl}/api/vapi/webhooks`;
 
     const assistantPayload = {
       ...(body ?? {}),
