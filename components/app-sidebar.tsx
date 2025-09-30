@@ -11,6 +11,7 @@ import {
   Moon,
   Sun,
   Phone,
+  Book,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import Link from "next/link";
@@ -48,6 +49,12 @@ const navigationItems = [
     label: "Opportunities",
     icon: CircleDollarSignIcon,
     href: "/opportunities",
+  },
+  {
+    id: "courses",
+    label: "Courses",
+    icon: Book,
+    href: "/courses",
   },
   {
     id: "checkup-calls",

@@ -17,3 +17,14 @@ export async function upsertUserFromClerk(clerkUser: any) {
 
   await supabaseAdmin.from("users").upsert(user);
 }
+
+export async function getProfileByUserId(userId: string) {
+  if (!userId) return null;
+  const { data, error } = await supabaseAdmin
+    .from("profile")
+    .select("*")
+    .eq("user_id", userId)
+    .single();
+  if (error) return null;
+  return data as any;
+}

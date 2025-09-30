@@ -202,10 +202,8 @@ export class GHLContactsService {
       dateUpdated,
       followers,
       timezone,
-      dnd,
-      dndSettings,
       ...updateData
-    } = contactData;
+    } = contactData as any;
 
     console.log("Updating contact with filtered data:", updateData);
 

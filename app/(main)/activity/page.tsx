@@ -7,6 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Calendar, Mail, Phone, Search, TrendingUp, UserPlus, Users } from "lucide-react";
 import { useState } from "react";
+import { filterByCategory, paginate } from "@/lib/actions";
+import { ACTIONS } from "@/lib/actions/registry";
+import { ActionGrid } from "@/components/actions/ActionGrid";
+import { ActionModal } from "@/components/actions/ActionModal";
 
 
 const stats = {
@@ -67,59 +71,44 @@ const getStatusColor = (status: string) => {
 export default function ActivityPage() {
 
   const [searchTerm, setSearchTerm] = useState("")
+  const [activeTab, setActiveTab] = useState<"Attract" | "Capture" | "Nurture" | "Convert">("Nurture")
+  const [page, setPage] = useState(1)
+  const [selectedAction, setSelectedAction] = useState<any>(null)
+  const [modalOpen, setModalOpen] = useState(false)
+
+  const actions = filterByCategory(ACTIONS, activeTab)
+  const runnable = actions.filter((a: any) => a?.execute && a.execute.name !== "stubExecute")
+  const { items, totalPages } = paginate(runnable, page, 8)
 
   return (
     <>
       <div className="p-6 border-b">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Contacts</p>
-                  <p className="text-2xl font-bold">{stats.totalContacts.toLocaleString()}</p>
-                </div>
-                <Users className="h-8 w-8 text-primary" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">New Leads</p>
-                  <p className="text-2xl font-bold">{stats.newLeads}</p>
-                </div>
-                <UserPlus className="h-8 w-8 text-accent" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Conversion Rate</p>
-                  <p className="text-2xl font-bold">{stats.conversionRate}%</p>
-                </div>
-                <TrendingUp className="h-8 w-8 text-chart-3" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Active Deals</p>
-                  <p className="text-2xl font-bold">{stats.activeDeals}</p>
-                </div>
-                <Calendar className="h-8 w-8 text-chart-4" />
-              </div>
-            </CardContent>
-          </Card>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex gap-2">
+            {(["Attract", "Capture", "Nurture", "Convert"] as const).map((tab) => (
+              <Button key={tab} variant={activeTab === tab ? "default" : "outline"} size="sm" onClick={() => { setActiveTab(tab); setPage(1); }}>
+                {tab}
+              </Button>
+            ))}
+          </div>
+          <div className="text-sm text-muted-foreground">Page {page} / {totalPages}</div>
         </div>
+        <ActionGrid
+          actions={items}
+          onSelect={(a) => {
+            setSelectedAction(a)
+            setModalOpen(true)
+          }}
+        />
+        {runnable.length > 8 && <div className="flex items-center justify-end gap-2 mt-4">
+          <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.max(1, p - 1))}>
+            Prev
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>
+            Next
+          </Button>
+        </div>
+        }
       </div>
       <div className="flex-1 p-6 overflow-auto">
         <Card>
@@ -183,6 +172,15 @@ export default function ActivityPage() {
           </CardContent>
         </Card>
       </div>
+      <ActionModal
+        action={selectedAction}
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onSubmit={(values) => {
+          // Backend wiring will be added: POST to /api/actions/execute
+          setModalOpen(false)
+        }}
+      />
     </>
   )
 }
