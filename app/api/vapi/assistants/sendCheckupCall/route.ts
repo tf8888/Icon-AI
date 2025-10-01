@@ -110,7 +110,7 @@ export async function POST(req: Request) {
         url: serverUrl,
         headers: {
           Authorization: `Bearer ${bearer}`,
-          locationId: body.locationId,
+          locationId: locationId,
         },
       },
       metadata: {
@@ -154,8 +154,11 @@ export async function POST(req: Request) {
       model: {
         provider: "openai",
         model: "gpt-4o",
-        temperature: 0.7,
-        systemPrompt: `You are a professional business assistant specializing in GoHighLevel CRM management. Your job is to provide users with comprehensive updates about their business performance and help them with GoHighLevel tasks. 
+        temperature: 0.5,
+        messages: [
+          {
+            role: "system",
+            content: `You are a professional business assistant specializing in GoHighLevel CRM management. Your job is to provide users with comprehensive updates about their business performance and help them with GoHighLevel tasks. 
 
         Key responsibilities:
         - Analyze business metrics and provide actionable insights
@@ -167,6 +170,8 @@ export async function POST(req: Request) {
         Always use location ID: ${locationId} for all tool calls. This is a checkup call to update the user on their business progress.
 
         Be professional, concise, and focus on delivering value through data-driven insights.`,
+          },
+        ],
         toolIds: [tool.id],
       },
       voice: {
