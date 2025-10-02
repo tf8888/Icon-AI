@@ -305,7 +305,7 @@ export default function SettingsPage() {
     setIsSendingCall(true);
     setSendCallError(null);
     try {
-      const res = await fetch("/api/vapi/assistants/sendCheckupCall", {
+      const res = await fetch("/api/vapi/assistants/sendCheckupCallLanggraph", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}), // Empty body - auth handled by Clerk on server side
